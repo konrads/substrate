@@ -85,6 +85,7 @@ pub use hooks::{
 };
 #[cfg(feature = "try-runtime")]
 pub use hooks::{OnRuntimeUpgradeHelpersExt, ON_RUNTIME_UPGRADE_PREFIX};
+pub mod schedule_datetime;
 
 pub mod schedule;
 mod storage;

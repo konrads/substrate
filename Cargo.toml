@@ -119,6 +119,7 @@ members = [
 	"frame/referenda",
 	"frame/remark",
 	"frame/scheduler",
+	"frame/scheduler-datetime",
 	"frame/scored-pool",
 	"frame/session",
 	"frame/session/benchmarking",

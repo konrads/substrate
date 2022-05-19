@@ -540,7 +540,7 @@ dependencies = [
  "sp-core",
  "sp-keystore",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -925,6 +925,15 @@ dependencies = [
  "num-traits",
  "time",
  "winapi",
+]
+
+[[package]]
+name = "chrono-light"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49fe3e645b66622fd039216749ff839c1fb9dc1e2ff9a592e94ea4201267a820"
+dependencies = [
+ "sp-std 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2097,7 +2106,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-runtime-interface",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-storage",
 ]
 
@@ -2181,7 +2190,7 @@ dependencies = [
  "sp-io",
  "sp-npos-elections",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -2216,7 +2225,7 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
  "sp-version",
 ]
@@ -2262,7 +2271,7 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
  "tt-call",
 ]
@@ -2315,7 +2324,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-version",
  "trybuild",
 ]
@@ -2357,7 +2366,7 @@ dependencies = [
  "sp-externalities",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-version",
  "substrate-test-runtime-client",
 ]
@@ -2374,7 +2383,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -2392,7 +2401,7 @@ dependencies = [
  "frame-support",
  "sp-api",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -4799,7 +4808,7 @@ dependencies = [
  "sp-sandbox",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-transaction-pool",
  "sp-version",
  "static_assertions",
@@ -4888,7 +4897,7 @@ dependencies = [
  "sp-offchain",
  "sp-runtime",
  "sp-session",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
@@ -5138,7 +5147,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-storage",
 ]
 
@@ -5155,7 +5164,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5170,7 +5179,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5187,7 +5196,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5204,7 +5213,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5220,7 +5229,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5249,7 +5258,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5267,7 +5276,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
 ]
 
@@ -5294,7 +5303,7 @@ dependencies = [
  "remote-externalities",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-storage",
  "sp-tracing",
 ]
@@ -5313,7 +5322,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5331,7 +5340,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5355,7 +5364,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5373,7 +5382,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5392,7 +5401,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5408,7 +5417,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5441,7 +5450,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-sandbox",
- "sp-std",
+ "sp-std 4.0.0",
  "wasm-instrument",
  "wasmi-validation",
  "wat",
@@ -5458,7 +5467,7 @@ dependencies = [
  "sp-core",
  "sp-rpc",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5496,7 +5505,7 @@ dependencies = [
  "scale-info",
  "sp-api",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5515,7 +5524,26 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
+]
+
+[[package]]
+name = "pallet-datetime-scheduler"
+version = "4.0.0-dev"
+dependencies = [
+ "chrono-light",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-preimage",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 4.0.0",
+ "substrate-test-utils",
 ]
 
 [[package]]
@@ -5533,7 +5561,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5556,7 +5584,7 @@ dependencies = [
  "sp-io",
  "sp-npos-elections",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
  "static_assertions",
  "strum",
@@ -5589,7 +5617,7 @@ dependencies = [
  "sp-io",
  "sp-npos-elections",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "substrate-test-utils",
 ]
 
@@ -5607,7 +5635,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5624,7 +5652,7 @@ dependencies = [
  "sp-io",
  "sp-keystore",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5638,7 +5666,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tasks",
 ]
 
@@ -5656,7 +5684,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5686,7 +5714,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5703,7 +5731,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5723,7 +5751,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5740,7 +5768,7 @@ dependencies = [
  "sp-io",
  "sp-keyring",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5757,7 +5785,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5773,7 +5801,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5792,7 +5820,7 @@ dependencies = [
  "sp-io",
  "sp-mmr-primitives",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5823,7 +5851,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5838,7 +5866,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5853,7 +5881,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5870,7 +5898,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
 ]
 
@@ -5894,7 +5922,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5912,7 +5940,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5938,7 +5966,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5954,7 +5982,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5971,7 +5999,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -5986,7 +6014,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6002,7 +6030,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6022,7 +6050,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6038,7 +6066,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6055,7 +6083,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "substrate-test-utils",
 ]
 
@@ -6071,7 +6099,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6090,7 +6118,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-trie",
 ]
 
@@ -6114,7 +6142,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-session",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6131,7 +6159,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6159,7 +6187,7 @@ dependencies = [
  "sp-npos-elections",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
  "substrate-test-utils",
 ]
@@ -6200,7 +6228,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
  "substrate-state-trie-migration-rpc",
  "thousands",
@@ -6219,7 +6247,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6250,7 +6278,7 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-timestamp",
 ]
 
@@ -6270,7 +6298,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-storage",
 ]
 
@@ -6289,7 +6317,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6332,7 +6360,7 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-transaction-storage-proof",
 ]
 
@@ -6351,7 +6379,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6368,7 +6396,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6384,7 +6412,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6401,7 +6429,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -6419,7 +6447,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -8700,7 +8728,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-sandbox",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tasks",
  "substrate-wasm-builder",
 ]
@@ -8854,7 +8882,7 @@ dependencies = [
  "serde_json",
  "sp-core",
  "sp-io",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9427,7 +9455,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-test-primitives",
  "sp-version",
  "thiserror",
@@ -9474,7 +9502,7 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-io",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9502,7 +9530,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-debug-derive",
- "sp-std",
+ "sp-std 4.0.0",
  "static_assertions",
 ]
 
@@ -9525,7 +9553,7 @@ dependencies = [
  "sp-api",
  "sp-application-crypto",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9536,7 +9564,7 @@ dependencies = [
  "parity-scale-codec",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9547,7 +9575,7 @@ dependencies = [
  "sp-api",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9580,7 +9608,7 @@ dependencies = [
  "sp-inherents",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-test-primitives",
  "sp-version",
  "thiserror",
@@ -9599,7 +9627,7 @@ dependencies = [
  "sp-consensus-slots",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-timestamp",
 ]
 
@@ -9621,7 +9649,7 @@ dependencies = [
  "sp-inherents",
  "sp-keystore",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-timestamp",
 ]
 
@@ -9633,7 +9661,7 @@ dependencies = [
  "sp-api",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9645,7 +9673,7 @@ dependencies = [
  "serde",
  "sp-arithmetic",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-timestamp",
 ]
 
@@ -9658,7 +9686,7 @@ dependencies = [
  "schnorrkel",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9701,7 +9729,7 @@ dependencies = [
  "sp-externalities",
  "sp-runtime-interface",
  "sp-serializer",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-storage",
  "ss58-registry",
  "substrate-bip39",
@@ -9720,7 +9748,7 @@ dependencies = [
  "digest 0.10.3",
  "sha2 0.10.2",
  "sha3 0.10.0",
- "sp-std",
+ "sp-std 4.0.0",
  "twox-hash",
 ]
 
@@ -9757,7 +9785,7 @@ version = "0.12.0"
 dependencies = [
  "environmental",
  "parity-scale-codec",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-storage",
 ]
 
@@ -9775,7 +9803,7 @@ dependencies = [
  "sp-core",
  "sp-keystore",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9788,7 +9816,7 @@ dependencies = [
  "parity-scale-codec",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "thiserror",
 ]
 
@@ -9808,7 +9836,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime-interface",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
  "sp-trie",
  "sp-wasm-interface",
@@ -9864,7 +9892,7 @@ dependencies = [
  "sp-core",
  "sp-debug-derive",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -9878,7 +9906,7 @@ dependencies = [
  "sp-arithmetic",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "substrate-test-utils",
 ]
 
@@ -9944,7 +9972,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-tracing",
  "substrate-test-runtime-client",
  "zstd",
@@ -9964,7 +9992,7 @@ dependencies = [
  "sp-runtime-interface-proc-macro",
  "sp-runtime-interface-test-wasm",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-storage",
  "sp-tracing",
  "sp-wasm-interface",
@@ -10006,7 +10034,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime-interface",
- "sp-std",
+ "sp-std 4.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -10017,7 +10045,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime-interface",
- "sp-std",
+ "sp-std 4.0.0",
  "substrate-wasm-builder",
 ]
 
@@ -10030,7 +10058,7 @@ dependencies = [
  "parity-scale-codec",
  "sp-core",
  "sp-io",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-wasm-interface",
  "wasmi",
  "wat",
@@ -10054,7 +10082,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "sp-staking",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -10064,7 +10092,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -10084,7 +10112,7 @@ dependencies = [
  "sp-externalities",
  "sp-panic-handler",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-trie",
  "thiserror",
  "tracing",
@@ -10096,6 +10124,12 @@ name = "sp-std"
 version = "4.0.0"
 
 [[package]]
+name = "sp-std"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14804d6069ee7a388240b665f17908d98386ffb0b5d39f89a4099fc7a2a4c03f"
+
+[[package]]
 name = "sp-storage"
 version = "6.0.0"
 dependencies = [
@@ -10104,7 +10138,7 @@ dependencies = [
  "ref-cast",
  "serde",
  "sp-debug-derive",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -10117,7 +10151,7 @@ dependencies = [
  "sp-externalities",
  "sp-io",
  "sp-runtime-interface",
- "sp-std",
+ "sp-std 4.0.0",
 ]
 
 [[package]]
@@ -10143,7 +10177,7 @@ dependencies = [
  "sp-api",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "thiserror",
 ]
 
@@ -10152,7 +10186,7 @@ name = "sp-tracing"
 version = "5.0.0"
 dependencies = [
  "parity-scale-codec",
- "sp-std",
+ "sp-std 4.0.0",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -10177,7 +10211,7 @@ dependencies = [
  "sp-core",
  "sp-inherents",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-trie",
 ]
 
@@ -10193,7 +10227,7 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "thiserror",
  "trie-bench",
  "trie-db",
@@ -10212,7 +10246,7 @@ dependencies = [
  "serde",
  "sp-core-hashing-proc-macro",
  "sp-runtime",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-version-proc-macro",
  "thiserror",
 ]
@@ -10235,7 +10269,7 @@ dependencies = [
  "impl-trait-for-tuples",
  "log",
  "parity-scale-codec",
- "sp-std",
+ "sp-std 4.0.0",
  "wasmi",
  "wasmtime",
 ]
@@ -10423,7 +10457,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-trie",
  "trie-db",
 ]
@@ -10491,7 +10525,7 @@ dependencies = [
  "sp-runtime-interface",
  "sp-session",
  "sp-state-machine",
- "sp-std",
+ "sp-std 4.0.0",
  "sp-transaction-pool",
  "sp-trie",
  "sp-version",
