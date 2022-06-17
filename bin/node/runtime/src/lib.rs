@@ -20,7 +20,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_election_provider_support::{
@@ -291,17 +291,18 @@ impl InstanceFilter<Call> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => !matches!(
 				c,
-				Call::Balances(..) |
-					Call::Assets(..) | Call::Uniques(..) |
-					Call::Vesting(pallet_vesting::Call::vested_transfer { .. }) |
-					Call::Indices(pallet_indices::Call::transfer { .. })
+				Call::Balances(..)
+					| Call::Assets(..) | Call::Uniques(..)
+					| Call::Vesting(pallet_vesting::Call::vested_transfer { .. })
+					| Call::Indices(pallet_indices::Call::transfer { .. })
 			),
 			ProxyType::Governance => matches!(
 				c,
-				Call::Democracy(..) |
-					Call::Council(..) | Call::Society(..) |
-					Call::TechnicalCommittee(..) |
-					Call::Elections(..) | Call::Treasury(..)
+				Call::Democracy(..)
+					| Call::Council(..) | Call::Society(..)
+					| Call::TechnicalCommittee(..)
+					| Call::Elections(..)
+					| Call::Treasury(..)
 			),
 			ProxyType::Staking => matches!(c, Call::Staking(..)),
 		}
@@ -351,6 +352,30 @@ impl pallet_scheduler::Config for Runtime {
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
 	type PreimageProvider = Preimage;
 	type NoPreimagePostponement = NoPreimagePostponement;
+}
+
+parameter_types! {
+	pub MaximumSchedulerDatetimeWeight: Weight = Perbill::from_percent(80) *
+		RuntimeBlockWeights::get().max_block;
+	// Retry a scheduled item every 10 blocks (1 minute) until the preimage exists.
+	pub const NoPreimagePostponementSchedulerDatetime: Option<u32> = Some(10);
+}
+
+impl pallet_scheduler_datetime::Config for Runtime {
+	type Moment = Moment; // used for ExpectedBlockTime
+	type Event = Event;
+	type Origin = Origin;
+	type PalletsOrigin = OriginCaller;
+	type Call = Call;
+	type MaximumWeight = MaximumSchedulerDatetimeWeight;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type MaxScheduledPerBlock = ConstU32<50>;
+	type WeightInfo = pallet_scheduler_datetime::weights::SubstrateWeight<Runtime>;
+	type OriginPrivilegeCmp = EqualPrivilegeOnly;
+	type PreimageProvider = Preimage;
+	type NoPreimagePostponement = NoPreimagePostponementSchedulerDatetime;
+	type TimeProvider = pallet_timestamp::Pallet<Runtime>;
+	type ExpectedBlockTime = ExpectedBlockTime;
 }
 
 parameter_types! {
@@ -636,8 +661,8 @@ impl Get<Option<(usize, ExtendedBalance)>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed") %
-					max.saturating_add(1);
+					.expect("input is padded with zeroes; qed")
+					% max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -1512,6 +1537,7 @@ construct_runtime!(
 		Recovery: pallet_recovery,
 		Vesting: pallet_vesting,
 		Scheduler: pallet_scheduler,
+		SchedulerDatetime: pallet_scheduler_datetime,
 		Preimage: pallet_preimage,
 		Proxy: pallet_proxy,
 		Multisig: pallet_multisig,
@@ -1623,6 +1649,7 @@ mod benches {
 		[pallet_recovery, Recovery]
 		[pallet_remark, Remark]
 		[pallet_scheduler, Scheduler]
+		[pallet_scheduler_datetime, SchedulerDatetime]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_staking, Staking]
 		[pallet_state_trie_migration, StateTrieMigration]

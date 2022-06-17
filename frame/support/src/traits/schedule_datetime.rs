@@ -17,6 +17,7 @@
 
 //! Traits and associated utilities for scheduling dispatchables in FRAME.
 
+use chrono_light::prelude::Schedule;
 use codec::{Codec, Decode, Encode, EncodeLike, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Saturating, DispatchError, RuntimeDebug};
@@ -31,6 +32,7 @@ pub type Period<BlockNumber> = (BlockNumber, u32);
 /// higher priority.
 pub type Priority = u8;
 
+/// FIXME: made obsolete by Schedule
 /// The dispatch time of a scheduled task.
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub enum DispatchTime<BlockNumber> {
@@ -114,15 +116,12 @@ impl<T: Decode, H> MaybeHashed<T, H> {
 	pub fn resolved<P: PreimageProvider<H>>(self) -> (Self, Option<H>) {
 		match self {
 			Self::Value(c) => (Self::Value(c), None),
-			Self::Hash(h) => {
-				let data = match P::get_preimage(&h) {
-					Some(p) => p,
-					None => return (Self::Hash(h), None),
-				};
-				match T::decode(&mut &data[..]) {
+			Self::Hash(h) => match P::get_preimage(&h) {
+				Some(data) => match T::decode(&mut &data[..]) {
 					Ok(c) => (Self::Value(c), Some(h)),
 					Err(_) => (Self::Hash(h), None),
-				}
+				},
+				None => return (Self::Hash(h), None),
 			},
 		}
 	}
@@ -141,6 +140,7 @@ pub trait Anon<BlockNumber, Call, Origin> {
 	fn schedule(
 		when: DispatchTime<BlockNumber>,
 		maybe_periodic: Option<Period<BlockNumber>>,
+		schedule: Schedule,
 		priority: Priority,
 		origin: Origin,
 		call: MaybeHashed<Call, Self::Hash>,
@@ -189,6 +189,7 @@ pub trait Named<BlockNumber, Call, Origin> {
 		id: Vec<u8>,
 		when: DispatchTime<BlockNumber>,
 		maybe_periodic: Option<Period<BlockNumber>>,
+		schedule: Schedule,
 		priority: Priority,
 		origin: Origin,
 		call: MaybeHashed<Call, Self::Hash>,

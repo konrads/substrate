@@ -1,5 +1,5 @@
 [package]
-name = "pallet-datetime-scheduler"
+name = "pallet-scheduler-datetime"
 version = "4.0.0-dev"
 authors = ["Konrad Sosnowski <sosnowski.konrad@gmail.com>"]
 edition = "2021"
@@ -10,9 +10,9 @@ description = "FRAME DateTime Scheduler pallet"
 readme = "README.md"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
-log = { version = "0.4.16", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+log = { version = "0.4.17", default-features = false }
 sp-std = { version = "4.0.0", default-features = false, path = "../../primitives/std" }
 sp-io = { version = "6.0.0", default-features = false, path = "../../primitives/io" }
 
@@ -20,8 +20,11 @@ sp-runtime = { version = "6.0.0", default-features = false, path = "../../primit
 frame-system = { version = "4.0.0-dev", default-features = false, path = "../system" }
 frame-support = { version = "4.0.0-dev", default-features = false, path = "../support" }
 frame-benchmarking = { version = "4.0.0-dev", default-features = false, path = "../benchmarking", optional = true }
+pallet-timestamp = { version = "4.0.0-dev", default-features = false, path = "../timestamp" }
 
-chrono-light = { version = "0.1.0", default-features = false, features = ["no_std"] }
+# chrono-light = { path = "../../primitives/chrono-light", default-features = false, features = ["scale"] }
+# chrono-light = { version = "0.1.2", default-features = false, features = ["scale"] }
+chrono-light = { git="https://github.com/konrads/chrono-light.git", rev="503cc82b8698b7827cb09686b0ee203443d17347", default-features = false, features = ["scale"] }
 
 [dev-dependencies]
 sp-core = { version = "6.0.0", path = "../../primitives/core", default-features = false }
@@ -45,5 +48,7 @@ std = [
 	"frame-system/std",
 	"frame-support/std",
 	"frame-benchmarking/std",
+	"pallet-timestamp/std",
+	"chrono-light/std"
 ]
 try-runtime = ["frame-support/try-runtime"]

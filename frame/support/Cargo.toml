@@ -14,8 +14,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 serde = { version = "1.0.136", optional = true, features = ["derive"] }
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "max-encoded-len"] }
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 frame-metadata = { version = "15.0.0", default-features = false, features = ["v14"] }
 sp-std = { version = "4.0.0", default-features = false, path = "../../primitives/std" }
 sp-io = { version = "6.0.0", default-features = false, path = "../../primitives/io" }
@@ -36,6 +36,8 @@ smallvec = "1.8.0"
 log = { version = "0.4.17", default-features = false }
 sp-core-hashing-proc-macro = { version = "5.0.0", path = "../../primitives/core/hashing/proc-macro" }
 k256 = { version = "0.10.4", default-features = false, features = ["ecdsa"] }
+# chrono-light = { path = "../../primitives/chrono-light", default-features = false, features = ["scale"] }
+chrono-light = { git="https://github.com/konrads/chrono-light.git", rev="503cc82b8698b7827cb09686b0ee203443d17347", default-features = false, features = ["scale"] }
 
 [dev-dependencies]
 serde_json = "1.0.79"
@@ -62,6 +64,7 @@ std = [
 	"sp-state-machine",
 	"frame-support-procedural/std",
 	"log/std",
+	"chrono-light/std",
 ]
 runtime-benchmarks = []
 try-runtime = []

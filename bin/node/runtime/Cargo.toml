@@ -92,6 +92,7 @@ pallet-staking = { version = "4.0.0-dev", default-features = false, path = "../.
 pallet-staking-reward-curve = { version = "4.0.0-dev", default-features = false, path = "../../../frame/staking/reward-curve" }
 pallet-state-trie-migration = { version = "4.0.0-dev", default-features = false, path = "../../../frame/state-trie-migration" }
 pallet-scheduler = { version = "4.0.0-dev", default-features = false, path = "../../../frame/scheduler" }
+pallet-scheduler-datetime = { default-features = false, path = "../../../frame/scheduler-datetime" }
 pallet-society = { version = "4.0.0-dev", default-features = false, path = "../../../frame/society" }
 pallet-sudo = { version = "4.0.0-dev", default-features = false, path = "../../../frame/sudo" }
 pallet-timestamp = { version = "4.0.0-dev", default-features = false, path = "../../../frame/timestamp" }
@@ -145,6 +146,7 @@ std = [
 	"pallet-nomination-pools/std",
 	"pallet-identity/std",
 	"pallet-scheduler/std",
+	"pallet-scheduler-datetime/std",
 	"node-primitives/std",
 	"sp-offchain/std",
 	"pallet-offences/std",
@@ -218,6 +220,7 @@ runtime-benchmarks = [
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
+	"pallet-scheduler-datetime/runtime-benchmarks",
 	"pallet-referenda/runtime-benchmarks",
 	"pallet-recovery/runtime-benchmarks",
 	"pallet-remark/runtime-benchmarks",
@@ -269,6 +272,7 @@ try-runtime = [
 	"pallet-recovery/try-runtime",
 	"pallet-referenda/try-runtime",
 	"pallet-scheduler/try-runtime",
+	"pallet-scheduler-datetime/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-society/try-runtime",
 	"pallet-staking/try-runtime",
