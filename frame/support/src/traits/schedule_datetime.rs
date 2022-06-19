@@ -166,7 +166,8 @@ pub trait Anon<BlockNumber, Call, Origin> {
 	/// Will return an error if the `address` is invalid.
 	fn reschedule(
 		address: Self::Address,
-		when: DispatchTime<BlockNumber>,
+		// when: DispatchTime<BlockNumber>,  // FIXME: should go!
+		new_schedule: Schedule,
 	) -> Result<Self::Address, DispatchError>;
 
 	/// Return the next dispatch time for a given task.
@@ -208,7 +209,8 @@ pub trait Named<BlockNumber, Call, Origin> {
 	/// only if it is executed *before* the currently scheduled block.
 	fn reschedule_named(
 		id: Vec<u8>,
-		when: DispatchTime<BlockNumber>,
+		// when: DispatchTime<BlockNumber>,
+		new_schedule: Schedule,
 	) -> Result<Self::Address, DispatchError>;
 
 	/// Return the next dispatch time for a given task.

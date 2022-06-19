@@ -109,7 +109,7 @@ pub struct Scheduled<Call, BlockNumber, PalletsOrigin, AccountId> {
 	/// Represents schedule
 	schedule: Schedule,
 	/// upcoming schedule trigger
-	next_trigger: u64,
+	next_trigger_ms: u64,
 	/// If the call is periodic, then this points to the information concerning that.
 	/// FIXME: superseded by schedule?
 	maybe_periodic: Option<schedule_datetime::Period<BlockNumber>>,
@@ -307,6 +307,8 @@ pub mod pallet {
 		TargetBlockNumberInPast,
 		/// Reschedule failed because it does not change scheduled time.
 		RescheduleNoChange,
+		/// Schedule won't trigger in the future.
+		NoFutureScheduleTriggers,
 	}
 
 	#[pallet::hooks]
@@ -334,137 +336,135 @@ pub mod pallet {
 			let next = now + One::one();
 
 			let mut total_weight: Weight = <T as Config>::WeightInfo::on_initialize(0);
-			for (order, (index, mut s)) in queued.into_iter().enumerate() {
-				let named = if let Some(ref id) = s.maybe_id {
-					Lookup::<T>::remove(id);
-					true
-				} else {
-					false
-				};
 
-				let (call, maybe_completed) = s.call.resolved::<T::PreimageProvider>();
-				s.call = call;
+			if ! queued.is_empty() {
+				let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
 
-				let resolved = if let Some(completed) = maybe_completed {
-					T::PreimageProvider::unrequest_preimage(&completed);
-					true
-				} else {
-					false
-				};
+				for (order, (index, mut s)) in queued.into_iter().enumerate() {
+					let named = if let Some(ref id) = s.maybe_id {
+						Lookup::<T>::remove(id);
+						true
+					} else {
+						false
+					};
 
-				let call = match s.call.as_value().cloned() {
-					Some(c) => c,
-					None => {
-						// Preimage not available - postpone until some block.
+					let (call, maybe_completed) = s.call.resolved::<T::PreimageProvider>();
+					s.call = call;
+
+					let resolved = if let Some(completed) = maybe_completed {
+						T::PreimageProvider::unrequest_preimage(&completed);
+						true
+					} else {
+						false
+					};
+
+					let call = match s.call.as_value().cloned() {
+						Some(c) => c,
+						None => {
+							// Preimage not available - postpone until some block.
+							total_weight
+								.saturating_accrue(<T as Config>::WeightInfo::item(false, named, None));
+							if let Some(delay) = T::NoPreimagePostponement::get() {
+								let until = now.saturating_add(delay);
+								if let Some(ref id) = s.maybe_id {
+									let index = Agenda::<T>::decode_len(until).unwrap_or(0);
+									Lookup::<T>::insert(id, (until, index as u32));
+								}
+								// FIXME: KS: preimage related delays, no change needed
+								Agenda::<T>::append(until, Some(s));
+							}
+							continue;
+						},
+					};
+
+					let periodic = s.maybe_periodic.is_some();
+					let call_weight = call.get_dispatch_info().weight;
+					let mut item_weight =
+						<T as Config>::WeightInfo::item(periodic, named, Some(resolved));
+					let origin =
+						<<T as Config>::Origin as From<T::PalletsOrigin>>::from(s.origin.clone())
+							.into();
+					if ensure_signed(origin).is_ok() {
+						// Weights of Signed dispatches expect their signing account to be whitelisted.
+						item_weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
+					}
+
+					// We allow a scheduled call if any is true:
+					// - It's priority is `HARD_DEADLINE`
+					// - It does not push the weight past the limit.
+					// - It is the first item in the schedule
+					let hard_deadline = s.priority <= schedule_datetime::HARD_DEADLINE;
+					let test_weight =
+						total_weight.saturating_add(call_weight).saturating_add(item_weight);
+					if !hard_deadline && order > 0 && test_weight > limit {
+						// Cannot be scheduled this block - postpone until next.
 						total_weight
 							.saturating_accrue(<T as Config>::WeightInfo::item(false, named, None));
-						if let Some(delay) = T::NoPreimagePostponement::get() {
-							let until = now.saturating_add(delay);
-							if let Some(ref id) = s.maybe_id {
-								let index = Agenda::<T>::decode_len(until).unwrap_or(0);
-								Lookup::<T>::insert(id, (until, index as u32));
-							}
-							// FIXME: KS: preimage related delays, no change needed
-							Agenda::<T>::append(until, Some(s));
+						if let Some(ref id) = s.maybe_id {
+							// NOTE: We could reasonably not do this (in which case there would be one
+							// block where the named and delayed item could not be referenced by name),
+							// but we will do it anyway since it should be mostly free in terms of
+							// weight and it is slightly cleaner.
+							let index = Agenda::<T>::decode_len(next).unwrap_or(0);
+							Lookup::<T>::insert(id, (next, index as u32));
 						}
+						// FIXME: KS: switch to chrono-light
+						// let _now = <pallet_timestamp::Pallet<T>>::get();
+						Agenda::<T>::append(next, Some(s));
 						continue;
-					},
-				};
-
-				let periodic = s.maybe_periodic.is_some();
-				let call_weight = call.get_dispatch_info().weight;
-				let mut item_weight =
-					<T as Config>::WeightInfo::item(periodic, named, Some(resolved));
-				let origin =
-					<<T as Config>::Origin as From<T::PalletsOrigin>>::from(s.origin.clone())
-						.into();
-				if ensure_signed(origin).is_ok() {
-					// Weights of Signed dispatches expect their signing account to be whitelisted.
-					item_weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
-				}
-
-				// We allow a scheduled call if any is true:
-				// - It's priority is `HARD_DEADLINE`
-				// - It does not push the weight past the limit.
-				// - It is the first item in the schedule
-				let hard_deadline = s.priority <= schedule_datetime::HARD_DEADLINE;
-				let test_weight =
-					total_weight.saturating_add(call_weight).saturating_add(item_weight);
-				if !hard_deadline && order > 0 && test_weight > limit {
-					// Cannot be scheduled this block - postpone until next.
-					total_weight
-						.saturating_accrue(<T as Config>::WeightInfo::item(false, named, None));
-					if let Some(ref id) = s.maybe_id {
-						// NOTE: We could reasonably not do this (in which case there would be one
-						// block where the named and delayed item could not be referenced by name),
-						// but we will do it anyway since it should be mostly free in terms of
-						// weight and it is slightly cleaner.
-						let index = Agenda::<T>::decode_len(next).unwrap_or(0);
-						Lookup::<T>::insert(id, (next, index as u32));
 					}
-					// FIXME: KS: switch to chrono-light
-					// let _now = <pallet_timestamp::Pallet<T>>::get();
-					Agenda::<T>::append(next, Some(s));
-					continue;
-				}
 
-				let dispatch_origin = s.origin.clone().into();
-				let (maybe_actual_call_weight, result) = match call.dispatch(dispatch_origin) {
-					Ok(post_info) => (post_info.actual_weight, Ok(())),
-					Err(error_and_info) => {
-						(error_and_info.post_info.actual_weight, Err(error_and_info.error))
-					},
-				};
-				let actual_call_weight = maybe_actual_call_weight.unwrap_or(call_weight);
-				total_weight.saturating_accrue(item_weight);
-				total_weight.saturating_accrue(actual_call_weight);
+					let dispatch_origin = s.origin.clone().into();
+					let (maybe_actual_call_weight, result) = match call.dispatch(dispatch_origin) {
+						Ok(post_info) => (post_info.actual_weight, Ok(())),
+						Err(error_and_info) => {
+							(error_and_info.post_info.actual_weight, Err(error_and_info.error))
+						},
+					};
+					let actual_call_weight = maybe_actual_call_weight.unwrap_or(call_weight);
+					total_weight.saturating_accrue(item_weight);
+					total_weight.saturating_accrue(actual_call_weight);
 
-				Self::deposit_event(Event::Dispatched {
-					task: (now, index),
-					id: s.maybe_id.clone(),
-					result,
-				});
+					Self::deposit_event(Event::Dispatched {
+						task: (now, index),
+						id: s.maybe_id.clone(),
+						result,
+					});
 
-				// inject next schedule based on no_ts
-				let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-				let calendar = Calendar::create();
-				if let Some(next_trigger) =
-					calendar.next_occurrence_ms(&calendar.from_unixtime(now_ms), &s.schedule) {
-					// convert to block delays
-					let wake_delay = div_round_up(next_trigger - now_ms, T::ExpectedBlockTime::get().saturated_into());
-					let wake = now + wake_delay.saturated_into();
+					// Inject next schedule based on current block number
+					if let Some((ms_trigger, block_number_trigger)) = Self::get_next_trigger(&s.schedule, now_ms, now) {
+						// If scheduled is named, place its information in `Lookup`
+						if let Some(ref id) = s.maybe_id {
+							let wake_index = Agenda::<T>::decode_len(block_number_trigger).unwrap_or(0);
+							Lookup::<T>::insert(id, (block_number_trigger, wake_index as u32));
+						}
 
-					if let Some(ref id) = s.maybe_id {
-						let wake_index = Agenda::<T>::decode_len(wake).unwrap_or(0);
-						Lookup::<T>::insert(id, (wake, wake_index as u32));
+						s.next_trigger_ms = ms_trigger;
+						Agenda::<T>::append(block_number_trigger, Some(s));
 					}
 					
-					Agenda::<T>::append(wake, Some(s));
-				};
-
-				// !!!!!!!!
-				//
-				// FIXME: schedule via Schedule not maybe_periodic
-				//        note: s is mut
-				//        consider: https://stackoverflow.com/questions/68262293/substrate-frame-v2-how-to-use-pallet-timestamp
-				//
-				// !!!!!!!!
-				// if let &Some((period, count)) = &s.maybe_periodic {
-				// 	if count > 1 {
-				// 		s.maybe_periodic = Some((period, count - 1));
-				// 	} else {
-				// 		s.maybe_periodic = None;
-				// 	}
-				// 	let wake = now + period;
-				// 	// If scheduled is named, place its information in `Lookup`
-				// 	if let Some(ref id) = s.maybe_id {
-				// 		let wake_index = Agenda::<T>::decode_len(wake).unwrap_or(0);
-				// 		Lookup::<T>::insert(id, (wake, wake_index as u32));
-				// 	}
-				// 	// FIXME: KS: no change needed here
-				// 	// // let _now = <pallet_timestamp::Pallet<T>>::get();
-				// 	Agenda::<T>::append(wake, Some(s));
-				// }
+					// !!!!!!!!
+					//
+					// FIXME: schedule via Schedule not maybe_periodic
+					//        note: s is mut
+					//        consider: https://stackoverflow.com/questions/68262293/substrate-frame-v2-how-to-use-pallet-timestamp
+					//
+					// !!!!!!!!
+					// if let &Some((period, count)) = &s.maybe_periodic {
+					// 	if count > 1 {
+					// 		s.maybe_periodic = Some((period, count - 1));
+					// 	} else {
+					// 		s.maybe_periodic = None;
+					// 	}
+					// 	let wake = now + period;
+					// 	// If scheduled is named, place its information in `Lookup`
+					// 	if let Some(ref id) = s.maybe_id {
+					// 		let wake_index = Agenda::<T>::decode_len(wake).unwrap_or(0);
+					// 		Lookup::<T>::insert(id, (wake, wake_index as u32));
+					// 	}
+					// 	Agenda::<T>::append(wake, Some(s));
+					// }
+				}
 			}
 			total_weight
 		}
@@ -617,41 +617,54 @@ impl<T: Config> Pallet<T> {
 		Ok(when)
 	}
 
+	fn get_next_trigger(schedule: &Schedule, now_ms: u64, curr_block_number: T::BlockNumber) -> Option<(u64, T::BlockNumber)> {
+		let calendar = Calendar::create();
+		calendar.next_occurrence_ms(&calendar.from_unixtime(now_ms), schedule).map(
+			|ms_trigger| {
+				let block_number_delay = div_round_up(ms_trigger - now_ms, T::ExpectedBlockTime::get().saturated_into()).max(1);
+				let block_number_trigger = curr_block_number + block_number_delay.saturated_into();
+				(ms_trigger, block_number_trigger)
+			}
+		)
+	}
+
 	fn do_schedule(
-		when: DispatchTime<T::BlockNumber>,
-		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,
+		when: DispatchTime<T::BlockNumber>,                                  // FIXME: will go!
+		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,   // FIXME: will go!
 		schedule: Schedule,
 		priority: schedule_datetime::Priority,
 		origin: T::PalletsOrigin,
 		call: CallOrHashOf<T>,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
-		let when = Self::resolve_time(when)?;
+		let curr_block_number = <frame_system::Pallet<T>>::block_number();
+		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
+		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+
+		// let when = Self::resolve_time(when)?;
 		call.ensure_requested::<T::PreimageProvider>();
 
 		// sanitize maybe_periodic
-		let maybe_periodic = maybe_periodic
-			.filter(|p| p.1 > 1 && !p.0.is_zero())
-			// Remove one from the number of repetitions since we will schedule one now.
-			.map(|(p, c)| (p, c - 1));
+		// let maybe_periodic = maybe_periodic
+		// 	.filter(|p| p.1 > 1 && !p.0.is_zero())
+		// 	// Remove one from the number of repetitions since we will schedule one now.
+		// 	.map(|(p, c)| (p, c - 1));
 
-		let next_trigger = Calendar::create().to_unixtime(&schedule.start.clone()); // FIXME: evaluate real next trigger!!!
+		// let next_trigger = Calendar::create().to_unixtime(&schedule.start.clone()); // FIXME: evaluate real next trigger!!!
 		let s = Some(Scheduled {
 			maybe_id: None,
 			priority,
 			call,
 			schedule,
-			next_trigger,
-			maybe_periodic,
+			next_trigger_ms,
+			maybe_periodic: None,  // FIXME: will go!
 			origin,
 			_phantom: PhantomData::<T::AccountId>::default(),
 		});
-		// FIXME: KS: switch to chrono-light
-		// // let _now = <pallet_timestamp::Pallet<T>>::get();
-		Agenda::<T>::append(when, s);
-		let index = Agenda::<T>::decode_len(when).unwrap_or(1) as u32 - 1;
-		Self::deposit_event(Event::Scheduled { when, index });
+		Agenda::<T>::append(next_trigger_block_time, s);
+		let index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
+		Self::deposit_event(Event::Scheduled { when: next_trigger_block_time, index });
 
-		Ok((when, index))
+		Ok((next_trigger_block_time, index))
 	}
 
 	fn do_cancel(
@@ -688,34 +701,41 @@ impl<T: Config> Pallet<T> {
 
 	fn do_reschedule(
 		(when, index): TaskAddress<T::BlockNumber>,
-		new_time: DispatchTime<T::BlockNumber>,
+		// new_time: DispatchTime<T::BlockNumber>,
+		new_schedule: Schedule,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
-		let new_time = Self::resolve_time(new_time)?;
+		let curr_block_number = <frame_system::Pallet<T>>::block_number();
+		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
+		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
-		if new_time == when {
-			return Err(Error::<T>::RescheduleNoChange.into());
-		}
+		// let new_time = Self::resolve_time(new_time)?;
 
-		// FIXME: KS: switch to chrono-light
-		// let _now = <pallet_timestamp::Pallet<T>>::get();
+		// if new_time == when {
+		// 	return Err(Error::<T>::RescheduleNoChange.into());
+		// }
+
 		Agenda::<T>::try_mutate(when, |agenda| -> DispatchResult {
 			let task = agenda.get_mut(index as usize).ok_or(Error::<T>::NotFound)?;
-			let task = task.take().ok_or(Error::<T>::NotFound)?;
-			Agenda::<T>::append(new_time, Some(task));
+			let mut task = task.take().ok_or(Error::<T>::NotFound)?;
+			if task.schedule == new_schedule {
+				return Err(Error::<T>::RescheduleNoChange.into());
+			}
+			task.schedule = new_schedule;
+			Agenda::<T>::append(next_trigger_block_time, Some(task));
 			Ok(())
 		})?;
 
-		let new_index = Agenda::<T>::decode_len(new_time).unwrap_or(1) as u32 - 1;
+		let new_index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
 		Self::deposit_event(Event::Canceled { when, index });
-		Self::deposit_event(Event::Scheduled { when: new_time, index: new_index });
+		Self::deposit_event(Event::Scheduled { when: next_trigger_block_time, index: new_index });
 
-		Ok((new_time, new_index))
+		Ok((next_trigger_block_time, new_index))
 	}
 
 	fn do_schedule_named(
 		id: Vec<u8>,
-		when: DispatchTime<T::BlockNumber>,
-		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,
+		when: DispatchTime<T::BlockNumber>,                                 // FIXME: should go!
+		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,  // FIXME: should go!
 		schedule: Schedule,
 		priority: schedule_datetime::Priority,
 		origin: T::PalletsOrigin,
@@ -726,34 +746,38 @@ impl<T: Config> Pallet<T> {
 			return Err(Error::<T>::FailedToSchedule)?;
 		}
 
-		let when = Self::resolve_time(when)?;
+		let curr_block_number = <frame_system::Pallet<T>>::block_number();
+		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
+		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+
+		// let when = Self::resolve_time(when)?;
 
 		call.ensure_requested::<T::PreimageProvider>();
 
 		// sanitize maybe_periodic
-		let maybe_periodic = maybe_periodic
-			.filter(|p| p.1 > 1 && !p.0.is_zero())
-			// Remove one from the number of repetitions since we will schedule one now.
-			.map(|(p, c)| (p, c - 1));
+		// let maybe_periodic = maybe_periodic
+		// 	.filter(|p| p.1 > 1 && !p.0.is_zero())
+		// 	// Remove one from the number of repetitions since we will schedule one now.
+		// 	.map(|(p, c)| (p, c - 1));
 
-			let next_trigger = Calendar::create().to_unixtime(&schedule.start.clone()); // FIXME: evaluate real next trigger!!!
-			let s = Scheduled {
+		// let next_trigger = Calendar::create().to_unixtime(&schedule.start.clone()); // FIXME: evaluate real next trigger!!!
+		let s = Scheduled {
 			maybe_id: Some(id.clone()),
 			priority,
 			call,
 			schedule,
-			next_trigger,
-			maybe_periodic,
+			next_trigger_ms,
+			maybe_periodic: None,
 			origin,
 			_phantom: Default::default(),
 		};
 		// FIXME: KS: switch to chrono-light
 		// let _now = <pallet_timestamp::Pallet<T>>::get();
-		Agenda::<T>::append(when, Some(s));
-		let index = Agenda::<T>::decode_len(when).unwrap_or(1) as u32 - 1;
-		let address = (when, index);
+		Agenda::<T>::append(next_trigger_block_time, Some(s));
+		let index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
+		let address = (next_trigger_block_time, index);
 		Lookup::<T>::insert(&id, &address);
-		Self::deposit_event(Event::Scheduled { when, index });
+		Self::deposit_event(Event::Scheduled { when: next_trigger_block_time, index });
 
 		Ok(address)
 	}
@@ -787,36 +811,41 @@ impl<T: Config> Pallet<T> {
 
 	fn do_reschedule_named(
 		id: Vec<u8>,
-		new_time: DispatchTime<T::BlockNumber>,
+		// new_time: DispatchTime<T::BlockNumber>,  // FIXME: should go!
+		new_schedule: Schedule,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
-		let new_time = Self::resolve_time(new_time)?;
+		let curr_block_number = <frame_system::Pallet<T>>::block_number();
+		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
+		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+
+		// let new_time = Self::resolve_time(new_time)?;
 
 		Lookup::<T>::try_mutate_exists(
 			id,
 			|lookup| -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 				let (when, index) = lookup.ok_or(Error::<T>::NotFound)?;
 
-				if new_time == when {
-					return Err(Error::<T>::RescheduleNoChange.into());
-				}
-
 				// FIXME: KS: switch to chrono-light
 				// let _now = <pallet_timestamp::Pallet<T>>::get();
 				Agenda::<T>::try_mutate(when, |agenda| -> DispatchResult {
 					let task = agenda.get_mut(index as usize).ok_or(Error::<T>::NotFound)?;
-					let task = task.take().ok_or(Error::<T>::NotFound)?;
-					Agenda::<T>::append(new_time, Some(task));
+					let mut task = task.take().ok_or(Error::<T>::NotFound)?;
+					if task.schedule == new_schedule {
+						return Err(Error::<T>::RescheduleNoChange.into());
+					}
+					task.schedule = new_schedule;
+					Agenda::<T>::append(next_trigger_block_time, Some(task));
 
 					Ok(())
 				})?;
 
-				let new_index = Agenda::<T>::decode_len(new_time).unwrap_or(1) as u32 - 1;
+				let new_index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
 				Self::deposit_event(Event::Canceled { when, index });
-				Self::deposit_event(Event::Scheduled { when: new_time, index: new_index });
+				Self::deposit_event(Event::Scheduled { when: next_trigger_block_time, index: new_index });
 
-				*lookup = Some((new_time, new_index));
+				*lookup = Some((next_trigger_block_time, new_index));
 
-				Ok((new_time, new_index))
+				Ok((next_trigger_block_time, new_index))
 			},
 		)
 	}
@@ -829,8 +858,8 @@ impl<T: Config> schedule_datetime::Anon<T::BlockNumber, <T as Config>::Call, T::
 	type Hash = T::Hash;
 
 	fn schedule(
-		when: DispatchTime<T::BlockNumber>,
-		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,
+		when: DispatchTime<T::BlockNumber>,                                // FIXME: should go!
+		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>, // FIXME: should go!
 		schedule: Schedule,
 		priority: schedule_datetime::Priority,
 		origin: T::PalletsOrigin,
@@ -845,9 +874,10 @@ impl<T: Config> schedule_datetime::Anon<T::BlockNumber, <T as Config>::Call, T::
 
 	fn reschedule(
 		address: Self::Address,
-		when: DispatchTime<T::BlockNumber>,
+		// when: DispatchTime<T::BlockNumber>,  // FIXME: should go!
+		new_schedule: Schedule,
 	) -> Result<Self::Address, DispatchError> {
-		Self::do_reschedule(address, when)
+		Self::do_reschedule(address, new_schedule) //, when, new_schedule)
 	}
 
 	fn next_dispatch_time((when, index): Self::Address) -> Result<T::BlockNumber, ()> {
@@ -863,8 +893,8 @@ impl<T: Config> schedule_datetime::Named<T::BlockNumber, <T as Config>::Call, T:
 
 	fn schedule_named(
 		id: Vec<u8>,
-		when: DispatchTime<T::BlockNumber>,
-		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,
+		when: DispatchTime<T::BlockNumber>,                                 // FIXME: should go!
+		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,  // FIXME: should go!
 		schedule: Schedule,
 		priority: schedule_datetime::Priority,
 		origin: T::PalletsOrigin,
@@ -879,9 +909,10 @@ impl<T: Config> schedule_datetime::Named<T::BlockNumber, <T as Config>::Call, T:
 
 	fn reschedule_named(
 		id: Vec<u8>,
-		when: DispatchTime<T::BlockNumber>,
+		// when: DispatchTime<T::BlockNumber>,  // FIXME: should go!
+		new_schedule: Schedule,
 	) -> Result<Self::Address, DispatchError> {
-		Self::do_reschedule_named(id, when)
+		Self::do_reschedule_named(id, new_schedule) // , when, new_schedule)
 	}
 
 	fn next_dispatch_time(id: Vec<u8>) -> Result<T::BlockNumber, ()> {
@@ -892,6 +923,7 @@ impl<T: Config> schedule_datetime::Named<T::BlockNumber, <T as Config>::Call, T:
 }
 
 // utils
+// FIXME: convert to Result, use map() instead of unwraps() to propagate calculation
 fn div_round_up(numerator: u64, denominator: u64) -> u64 {
 	let denominator_rounded_up = if numerator % denominator == 0 {
 		denominator
