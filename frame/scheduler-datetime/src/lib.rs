@@ -49,15 +49,6 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 
-// FIXME: KS:
-// - consider if instead of inheriting from `pallet_timestamp::Config`, should use an assignment of `Time` associated type in Config
-//   - benefits:
-//     - decoupling, seems nicer
-//   - disadvantages:
-//     - no need to expose timestamp pallet (true...?)
-//     - inheritance from `pallet_timestamp::Config` is done in other examples, eg. babe
-//     - what happens if multiple pallets inherit from pallet_timestamp? what if they all use different versions...????
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -73,7 +64,7 @@ use codec::{Codec, Decode, Encode};
 use frame_support::{
 	dispatch::{DispatchError, DispatchResult, Dispatchable, Parameter},
 	traits::{
-		schedule_datetime::{self, DispatchTime, MaybeHashed},
+		schedule_datetime::{self, MaybeHashed},
 		EnsureOrigin, Get, IsType, OriginTrait, PrivilegeCmp, StorageVersion, Time,
 	},
 	weights::{GetDispatchInfo, Weight},
@@ -99,7 +90,7 @@ pub type CallOrHashOf<T> = MaybeHashed<<T as Config>::Call, <T as frame_system::
 /// Information regarding an item to be executed in the future.
 #[cfg_attr(any(feature = "std", test), derive(PartialEq, Eq))]
 #[derive(Clone, RuntimeDebug, Encode, Decode, TypeInfo)]
-pub struct Scheduled<Call, BlockNumber, PalletsOrigin, AccountId> {
+pub struct Scheduled<Call, PalletsOrigin, AccountId> {
 	/// The unique identity for this task, if there is one.
 	maybe_id: Option<Vec<u8>>,
 	/// This task's priority.
@@ -110,9 +101,6 @@ pub struct Scheduled<Call, BlockNumber, PalletsOrigin, AccountId> {
 	schedule: Schedule,
 	/// upcoming schedule trigger
 	next_trigger_ms: u64,
-	/// If the call is periodic, then this points to the information concerning that.
-	/// FIXME: superseded by schedule?
-	maybe_periodic: Option<schedule_datetime::Period<BlockNumber>>,
 	/// The origin to dispatch the call.
 	origin: PalletsOrigin,
 	_phantom: PhantomData<AccountId>,
@@ -120,7 +108,7 @@ pub struct Scheduled<Call, BlockNumber, PalletsOrigin, AccountId> {
 
 pub type ScheduledOf<T> = Scheduled<
 	CallOrHashOf<T>,
-	<T as frame_system::Config>::BlockNumber,
+	// <T as frame_system::Config>::BlockNumber,
 	<T as Config>::PalletsOrigin,
 	<T as frame_system::Config>::AccountId,
 >;
@@ -198,16 +186,6 @@ pub mod pallet {
 	/// `system::Config` should always be included in our implied traits.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		//} + pallet_timestamp::Config {
-
-		// type Moment: Parameter
-		// 	+ Default
-		// 	+ AtLeast32Bit
-		// 	+ Scale<Self::BlockNumber, Output = Self::Moment>
-		// 	+ Copy
-		// 	+ MaxEncodedLen
-		// 	+ scale_info::StaticTypeInfo;
-
 		type Moment: AtLeast32Bit + Parameter + Default + Copy + MaxEncodedLen;
 
 		/// The overarching event type.
@@ -370,14 +348,16 @@ pub mod pallet {
 									let index = Agenda::<T>::decode_len(until).unwrap_or(0);
 									Lookup::<T>::insert(id, (until, index as u32));
 								}
-								// FIXME: KS: preimage related delays, no change needed
 								Agenda::<T>::append(until, Some(s));
 							}
 							continue;
 						},
 					};
 
-					let periodic = s.maybe_periodic.is_some();
+					// !!!!!!!
+					// FIXME: weights not yet converted to Schedule
+					// !!!!!!!
+					let periodic = false; // s.maybe_periodic.is_some();
 					let call_weight = call.get_dispatch_info().weight;
 					let mut item_weight =
 						<T as Config>::WeightInfo::item(periodic, named, Some(resolved));
@@ -408,8 +388,6 @@ pub mod pallet {
 							let index = Agenda::<T>::decode_len(next).unwrap_or(0);
 							Lookup::<T>::insert(id, (next, index as u32));
 						}
-						// FIXME: KS: switch to chrono-light
-						// let _now = <pallet_timestamp::Pallet<T>>::get();
 						Agenda::<T>::append(next, Some(s));
 						continue;
 					}
@@ -442,28 +420,6 @@ pub mod pallet {
 						s.next_trigger_ms = ms_trigger;
 						Agenda::<T>::append(block_number_trigger, Some(s));
 					}
-					
-					// !!!!!!!!
-					//
-					// FIXME: schedule via Schedule not maybe_periodic
-					//        note: s is mut
-					//        consider: https://stackoverflow.com/questions/68262293/substrate-frame-v2-how-to-use-pallet-timestamp
-					//
-					// !!!!!!!!
-					// if let &Some((period, count)) = &s.maybe_periodic {
-					// 	if count > 1 {
-					// 		s.maybe_periodic = Some((period, count - 1));
-					// 	} else {
-					// 		s.maybe_periodic = None;
-					// 	}
-					// 	let wake = now + period;
-					// 	// If scheduled is named, place its information in `Lookup`
-					// 	if let Some(ref id) = s.maybe_id {
-					// 		let wake_index = Agenda::<T>::decode_len(wake).unwrap_or(0);
-					// 		Lookup::<T>::insert(id, (wake, wake_index as u32));
-					// 	}
-					// 	Agenda::<T>::append(wake, Some(s));
-					// }
 				}
 			}
 			total_weight
@@ -485,8 +441,6 @@ pub mod pallet {
 			T::ScheduleOrigin::ensure_origin(origin.clone())?;
 			let origin = <T as Config>::Origin::from(origin);
 			Self::do_schedule(
-				DispatchTime::At(when),
-				maybe_periodic,
 				schedule,
 				priority,
 				origin.caller().clone(),
@@ -509,8 +463,6 @@ pub mod pallet {
 		pub fn schedule_named(
 			origin: OriginFor<T>,
 			id: Vec<u8>,
-			when: T::BlockNumber,
-			maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,
 			schedule: Schedule,
 			priority: schedule_datetime::Priority,
 			call: Box<CallOrHashOf<T>>,
@@ -519,8 +471,6 @@ pub mod pallet {
 			let origin = <T as Config>::Origin::from(origin);
 			Self::do_schedule_named(
 				id,
-				DispatchTime::At(when),
-				maybe_periodic,
 				schedule,
 				priority,
 				origin.caller().clone(),
@@ -555,8 +505,6 @@ pub mod pallet {
 			T::ScheduleOrigin::ensure_origin(origin.clone())?;
 			let origin = <T as Config>::Origin::from(origin);
 			Self::do_schedule(
-				DispatchTime::After(after),
-				maybe_periodic,
 				schedule,
 				priority,
 				origin.caller().clone(),
@@ -584,8 +532,6 @@ pub mod pallet {
 			let origin = <T as Config>::Origin::from(origin);
 			Self::do_schedule_named(
 				id,
-				DispatchTime::After(after),
-				maybe_periodic,
 				schedule,
 				priority,
 				origin.caller().clone(),
@@ -597,26 +543,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// !!!!!!!!!!
-	/// Convert to schedule!
-	/// !!!!!!!!!!
-	fn resolve_time(when: DispatchTime<T::BlockNumber>) -> Result<T::BlockNumber, DispatchError> {
-		let now = frame_system::Pallet::<T>::block_number();
-
-		let when = match when {
-			DispatchTime::At(x) => x,
-			// The current block has already completed it's scheduled tasks, so
-			// Schedule the task at lest one block after this current block.
-			DispatchTime::After(x) => now.saturating_add(x).saturating_add(One::one()),
-		};
-
-		if when <= now {
-			return Err(Error::<T>::TargetBlockNumberInPast.into());
-		}
-
-		Ok(when)
-	}
-
 	fn get_next_trigger(schedule: &Schedule, now_ms: u64, curr_block_number: T::BlockNumber) -> Option<(u64, T::BlockNumber)> {
 		let calendar = Calendar::create();
 		calendar.next_occurrence_ms(&calendar.from_unixtime(now_ms), schedule).map(
@@ -629,8 +555,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn do_schedule(
-		when: DispatchTime<T::BlockNumber>,                                  // FIXME: will go!
-		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,   // FIXME: will go!
 		schedule: Schedule,
 		priority: schedule_datetime::Priority,
 		origin: T::PalletsOrigin,
@@ -640,23 +564,14 @@ impl<T: Config> Pallet<T> {
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
 		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
-		// let when = Self::resolve_time(when)?;
 		call.ensure_requested::<T::PreimageProvider>();
 
-		// sanitize maybe_periodic
-		// let maybe_periodic = maybe_periodic
-		// 	.filter(|p| p.1 > 1 && !p.0.is_zero())
-		// 	// Remove one from the number of repetitions since we will schedule one now.
-		// 	.map(|(p, c)| (p, c - 1));
-
-		// let next_trigger = Calendar::create().to_unixtime(&schedule.start.clone()); // FIXME: evaluate real next trigger!!!
 		let s = Some(Scheduled {
 			maybe_id: None,
 			priority,
 			call,
 			schedule,
 			next_trigger_ms,
-			maybe_periodic: None,  // FIXME: will go!
 			origin,
 			_phantom: PhantomData::<T::AccountId>::default(),
 		});
@@ -674,7 +589,7 @@ impl<T: Config> Pallet<T> {
 		let scheduled = Agenda::<T>::try_mutate(when, |agenda| {
 			agenda.get_mut(index as usize).map_or(
 				Ok(None),
-				|s| -> Result<Option<Scheduled<_, _, _, _>>, DispatchError> {
+				|s| -> Result<Option<Scheduled<_, _, _>>, DispatchError> {
 					if let (Some(ref o), Some(ref s)) = (origin, s.borrow()) {
 						if matches!(
 							T::OriginPrivilegeCmp::cmp_privilege(o, &s.origin),
@@ -699,20 +614,14 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
+	/// Reschedule by (when, index), not sure it makes sense for anonymous schedule
 	fn do_reschedule(
 		(when, index): TaskAddress<T::BlockNumber>,
-		// new_time: DispatchTime<T::BlockNumber>,
 		new_schedule: Schedule,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
 		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
-
-		// let new_time = Self::resolve_time(new_time)?;
-
-		// if new_time == when {
-		// 	return Err(Error::<T>::RescheduleNoChange.into());
-		// }
 
 		Agenda::<T>::try_mutate(when, |agenda| -> DispatchResult {
 			let task = agenda.get_mut(index as usize).ok_or(Error::<T>::NotFound)?;
@@ -734,8 +643,6 @@ impl<T: Config> Pallet<T> {
 
 	fn do_schedule_named(
 		id: Vec<u8>,
-		when: DispatchTime<T::BlockNumber>,                                 // FIXME: should go!
-		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,  // FIXME: should go!
 		schedule: Schedule,
 		priority: schedule_datetime::Priority,
 		origin: T::PalletsOrigin,
@@ -750,29 +657,17 @@ impl<T: Config> Pallet<T> {
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
 		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
-		// let when = Self::resolve_time(when)?;
-
 		call.ensure_requested::<T::PreimageProvider>();
 
-		// sanitize maybe_periodic
-		// let maybe_periodic = maybe_periodic
-		// 	.filter(|p| p.1 > 1 && !p.0.is_zero())
-		// 	// Remove one from the number of repetitions since we will schedule one now.
-		// 	.map(|(p, c)| (p, c - 1));
-
-		// let next_trigger = Calendar::create().to_unixtime(&schedule.start.clone()); // FIXME: evaluate real next trigger!!!
 		let s = Scheduled {
 			maybe_id: Some(id.clone()),
 			priority,
 			call,
 			schedule,
 			next_trigger_ms,
-			maybe_periodic: None,
 			origin,
 			_phantom: Default::default(),
 		};
-		// FIXME: KS: switch to chrono-light
-		// let _now = <pallet_timestamp::Pallet<T>>::get();
 		Agenda::<T>::append(next_trigger_block_time, Some(s));
 		let index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
 		let address = (next_trigger_block_time, index);
@@ -811,22 +706,17 @@ impl<T: Config> Pallet<T> {
 
 	fn do_reschedule_named(
 		id: Vec<u8>,
-		// new_time: DispatchTime<T::BlockNumber>,  // FIXME: should go!
 		new_schedule: Schedule,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
 		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
-		// let new_time = Self::resolve_time(new_time)?;
-
 		Lookup::<T>::try_mutate_exists(
 			id,
 			|lookup| -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 				let (when, index) = lookup.ok_or(Error::<T>::NotFound)?;
 
-				// FIXME: KS: switch to chrono-light
-				// let _now = <pallet_timestamp::Pallet<T>>::get();
 				Agenda::<T>::try_mutate(when, |agenda| -> DispatchResult {
 					let task = agenda.get_mut(index as usize).ok_or(Error::<T>::NotFound)?;
 					let mut task = task.take().ok_or(Error::<T>::NotFound)?;
@@ -858,14 +748,12 @@ impl<T: Config> schedule_datetime::Anon<T::BlockNumber, <T as Config>::Call, T::
 	type Hash = T::Hash;
 
 	fn schedule(
-		when: DispatchTime<T::BlockNumber>,                                // FIXME: should go!
-		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>, // FIXME: should go!
 		schedule: Schedule,
 		priority: schedule_datetime::Priority,
 		origin: T::PalletsOrigin,
 		call: CallOrHashOf<T>,
 	) -> Result<Self::Address, DispatchError> {
-		Self::do_schedule(when, maybe_periodic, schedule, priority, origin, call)
+		Self::do_schedule(schedule, priority, origin, call)
 	}
 
 	fn cancel((when, index): Self::Address) -> Result<(), ()> {
@@ -874,10 +762,9 @@ impl<T: Config> schedule_datetime::Anon<T::BlockNumber, <T as Config>::Call, T::
 
 	fn reschedule(
 		address: Self::Address,
-		// when: DispatchTime<T::BlockNumber>,  // FIXME: should go!
 		new_schedule: Schedule,
 	) -> Result<Self::Address, DispatchError> {
-		Self::do_reschedule(address, new_schedule) //, when, new_schedule)
+		Self::do_reschedule(address, new_schedule)
 	}
 
 	fn next_dispatch_time((when, index): Self::Address) -> Result<T::BlockNumber, ()> {
@@ -893,14 +780,12 @@ impl<T: Config> schedule_datetime::Named<T::BlockNumber, <T as Config>::Call, T:
 
 	fn schedule_named(
 		id: Vec<u8>,
-		when: DispatchTime<T::BlockNumber>,                                 // FIXME: should go!
-		maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,  // FIXME: should go!
 		schedule: Schedule,
 		priority: schedule_datetime::Priority,
 		origin: T::PalletsOrigin,
 		call: CallOrHashOf<T>,
 	) -> Result<Self::Address, ()> {
-		Self::do_schedule_named(id, when, maybe_periodic, schedule, priority, origin, call).map_err(|_| ())
+		Self::do_schedule_named(id, schedule, priority, origin, call).map_err(|_| ())
 	}
 
 	fn cancel_named(id: Vec<u8>) -> Result<(), ()> {
@@ -909,10 +794,9 @@ impl<T: Config> schedule_datetime::Named<T::BlockNumber, <T as Config>::Call, T:
 
 	fn reschedule_named(
 		id: Vec<u8>,
-		// when: DispatchTime<T::BlockNumber>,  // FIXME: should go!
 		new_schedule: Schedule,
 	) -> Result<Self::Address, DispatchError> {
-		Self::do_reschedule_named(id, new_schedule) // , when, new_schedule)
+		Self::do_reschedule_named(id, new_schedule)
 	}
 
 	fn next_dispatch_time(id: Vec<u8>) -> Result<T::BlockNumber, ()> {

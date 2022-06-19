@@ -32,25 +32,6 @@ pub type Period<BlockNumber> = (BlockNumber, u32);
 /// higher priority.
 pub type Priority = u8;
 
-/// FIXME: made obsolete by Schedule
-/// The dispatch time of a scheduled task.
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum DispatchTime<BlockNumber> {
-	/// At specified block.
-	At(BlockNumber),
-	/// After specified number of blocks.
-	After(BlockNumber),
-}
-
-impl<BlockNumber: Saturating + Copy> DispatchTime<BlockNumber> {
-	pub fn evaluate(&self, since: BlockNumber) -> BlockNumber {
-		match &self {
-			Self::At(m) => *m,
-			Self::After(m) => m.saturating_add(since),
-		}
-	}
-}
-
 /// The highest priority. We invert the value so that normal sorting will place the highest
 /// priority at the beginning of the list.
 pub const HIGHEST_PRIORITY: Priority = 0;
@@ -138,8 +119,6 @@ pub trait Anon<BlockNumber, Call, Origin> {
 	///
 	/// This is not named.
 	fn schedule(
-		when: DispatchTime<BlockNumber>,
-		maybe_periodic: Option<Period<BlockNumber>>,
 		schedule: Schedule,
 		priority: Priority,
 		origin: Origin,
@@ -166,7 +145,6 @@ pub trait Anon<BlockNumber, Call, Origin> {
 	/// Will return an error if the `address` is invalid.
 	fn reschedule(
 		address: Self::Address,
-		// when: DispatchTime<BlockNumber>,  // FIXME: should go!
 		new_schedule: Schedule,
 	) -> Result<Self::Address, DispatchError>;
 
@@ -188,8 +166,6 @@ pub trait Named<BlockNumber, Call, Origin> {
 	/// - `id`: The identity of the task. This must be unique and will return an error if not.
 	fn schedule_named(
 		id: Vec<u8>,
-		when: DispatchTime<BlockNumber>,
-		maybe_periodic: Option<Period<BlockNumber>>,
 		schedule: Schedule,
 		priority: Priority,
 		origin: Origin,
@@ -209,7 +185,6 @@ pub trait Named<BlockNumber, Call, Origin> {
 	/// only if it is executed *before* the currently scheduled block.
 	fn reschedule_named(
 		id: Vec<u8>,
-		// when: DispatchTime<BlockNumber>,
 		new_schedule: Schedule,
 	) -> Result<Self::Address, DispatchError>;
 
