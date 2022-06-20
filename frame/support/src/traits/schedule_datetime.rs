@@ -20,7 +20,7 @@
 use chrono_light::prelude::Schedule;
 use codec::{Codec, Decode, Encode, EncodeLike, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Saturating, DispatchError, RuntimeDebug};
+use sp_runtime::{DispatchError, RuntimeDebug};
 use sp_std::{fmt::Debug, prelude::*, result::Result};
 
 /// Information relating to the period of a scheduled task. First item is the length of the

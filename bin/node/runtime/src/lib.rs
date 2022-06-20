@@ -355,8 +355,8 @@ impl pallet_scheduler::Config for Runtime {
 }
 
 parameter_types! {
-	pub MaximumSchedulerDatetimeWeight: Weight = Perbill::from_percent(80) *
-		RuntimeBlockWeights::get().max_block;
+	pub MaximumSchedulerDatetimeWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
+	pub ClockDriftFixFrequency: Option<u64> = Some(10 * 60 * 24 * 7);  // ~ weekly schedule
 	// Retry a scheduled item every 10 blocks (1 minute) until the preimage exists.
 	pub const NoPreimagePostponementSchedulerDatetime: Option<u32> = Some(10);
 }
@@ -376,6 +376,7 @@ impl pallet_scheduler_datetime::Config for Runtime {
 	type NoPreimagePostponement = NoPreimagePostponementSchedulerDatetime;
 	type TimeProvider = pallet_timestamp::Pallet<Runtime>;
 	type ExpectedBlockTime = ExpectedBlockTime;
+	type ClockDriftFixFrequency = ClockDriftFixFrequency;
 }
 
 parameter_types! {

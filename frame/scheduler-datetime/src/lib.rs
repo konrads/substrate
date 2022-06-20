@@ -74,10 +74,10 @@ use frame_system::{self as system, ensure_signed};
 pub use pallet::*;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AtLeast32Bit, BadOrigin, One, SaturatedConversion, Saturating, Zero},
+	traits::{AtLeast32Bit, BadOrigin, One, SaturatedConversion, Saturating},
 	RuntimeDebug,
 };
-use sp_std::{borrow::Borrow, cmp::Ordering, marker::PhantomData, prelude::*};
+use sp_std::{collections::btree_map::BTreeMap, borrow::Borrow, cmp::Ordering, marker::PhantomData, prelude::*};
 pub use weights::WeightInfo;
 
 /// Just a simple index for naming period tasks.
@@ -108,7 +108,6 @@ pub struct Scheduled<Call, PalletsOrigin, AccountId> {
 
 pub type ScheduledOf<T> = Scheduled<
 	CallOrHashOf<T>,
-	// <T as frame_system::Config>::BlockNumber,
 	<T as Config>::PalletsOrigin,
 	<T as frame_system::Config>::AccountId,
 >;
@@ -215,9 +214,13 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxScheduledPerBlock: Get<u32>;
 
-		/// Length of the block, used to calculate schedule wake times
+		/// Length of the block, used to calculate schedule wake times.
 		#[pallet::constant]
-		type ExpectedBlockTime: Get<Self::Moment>; //Get<u64>; 
+		type ExpectedBlockTime: Get<Self::Moment>;
+
+		/// How often to account for clock drift in schedules.
+		#[pallet::constant]
+		type ClockDriftFixFrequency: Get<Option<u64>>;
 
 		/// Required origin to schedule or cancel calls.
 		type ScheduleOrigin: EnsureOrigin<<Self as system::Config>::Origin>;
@@ -293,6 +296,11 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// Execute the scheduled calls
 		fn on_initialize(now: T::BlockNumber) -> Weight {
+			let should_refresh_schedules = T::ClockDriftFixFrequency::get().map(|x| now.saturated_into::<u64>() % x == 0).unwrap_or_default();
+			if should_refresh_schedules {
+				Self::refresh_scheduleds(now);
+			}
+
 			let limit = T::MaximumWeight::get();
 
 			let mut queued = Agenda::<T>::take(now)
@@ -354,10 +362,7 @@ pub mod pallet {
 						},
 					};
 
-					// !!!!!!!
-					// FIXME: weights not yet converted to Schedule
-					// !!!!!!!
-					let periodic = false; // s.maybe_periodic.is_some();
+					let periodic = !s.schedule.items.is_empty();
 					let call_weight = call.get_dispatch_info().weight;
 					let mut item_weight =
 						<T as Config>::WeightInfo::item(periodic, named, Some(resolved));
@@ -432,8 +437,6 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::schedule(T::MaxScheduledPerBlock::get()))]
 		pub fn schedule(
 			origin: OriginFor<T>,
-			when: T::BlockNumber,
-			maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,
 			schedule: Schedule,
 			priority: schedule_datetime::Priority,
 			call: Box<CallOrHashOf<T>>,
@@ -496,8 +499,6 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::schedule(T::MaxScheduledPerBlock::get()))]
 		pub fn schedule_after(
 			origin: OriginFor<T>,
-			after: T::BlockNumber,
-			maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,
 			schedule: Schedule,
 			priority: schedule_datetime::Priority,
 			call: Box<CallOrHashOf<T>>,
@@ -522,8 +523,6 @@ pub mod pallet {
 		pub fn schedule_named_after(
 			origin: OriginFor<T>,
 			id: Vec<u8>,
-			after: T::BlockNumber,
-			maybe_periodic: Option<schedule_datetime::Period<T::BlockNumber>>,
 			schedule: Schedule,
 			priority: schedule_datetime::Priority,
 			call: Box<CallOrHashOf<T>>,
@@ -543,11 +542,81 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Refreshes Scheduleds:
+	/// - recalculates target `wake` BlockNumber (Agenda's key), if clock drift occurred, move it around in Agenda and Lookup storages.
+	/// - remove and None in Agenda (presuming not existing in Lookup)
+	/// Note: expensive, goes through all of Agenda storage!!!
+	fn refresh_scheduleds(now: T::BlockNumber) {
+		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
+		let block_duration: u64 = T::ExpectedBlockTime::get().saturated_into();
+		let mut rescheduleds = BTreeMap::<T::BlockNumber, Vec<_>>::new();
+
+		// iterate through all the keys, removing when clock drift detected, keeping track in `rescheduleds` for subsequent re-introduction
+		let ignore_error = ();
+		for exp_block_number_trigger in Agenda::<T>::iter_keys() {
+			Agenda::<T>::try_mutate_exists(exp_block_number_trigger, |scheduled_opts| {
+				match scheduled_opts.take() {
+					None => Result::Err(ignore_error),  // won't happen, we picked existing key
+					Some(scheduleds) => {
+						let mut clock_drift_detected = false;
+						let indexed_scheduleds = scheduleds.into_iter().filter_map(|x| x);
+						let new_scheduled_opts = indexed_scheduleds.filter_map(|x| {
+							// detect clock drift
+							let block_number_delay = div_mul_round_up(x.next_trigger_ms - now_ms, block_duration);
+							let block_number_trigger = now + block_number_delay.saturated_into();
+							if exp_block_number_trigger != block_number_trigger {
+								clock_drift_detected = true;
+								// remove from Lookup
+								if let Some(id) = &x.maybe_id {
+									Lookup::<T>::remove(id);
+								}
+
+								// store for subsequent insertion
+								if let Some(scheduleds) = rescheduleds.get_mut(&block_number_trigger) {
+									scheduleds.push(x);
+								} else {
+									rescheduleds.insert(block_number_trigger, vec![x]);
+								}
+
+								None
+							} else {
+								Some(Some(x))
+							}
+						}).collect::<Vec<_>>();
+						if new_scheduled_opts.is_empty() {
+							*scheduled_opts = None;
+						} else {
+							*scheduled_opts = Some(new_scheduled_opts);
+						}
+
+						if clock_drift_detected {
+							Ok(())
+						} else {
+							Result::Err(ignore_error)
+						}
+					}
+				}
+			}).ok();
+		}
+
+		// re-introduce rescheduled at new BlockNumbers, into both Agenda and Lookup
+		for (block_number, scheduleds) in rescheduleds.into_iter() {
+			Agenda::<T>::mutate(block_number, |curr_scheduleds| {
+				let curr_offset = curr_scheduleds.len();
+				for (i, id) in scheduleds.iter().enumerate().filter_map(|(i, x)| Some((i, x.maybe_id.as_ref()?))) {
+					Lookup::<T>::insert(&id, (block_number, (i + curr_offset) as u32));
+				}
+				let mut schedule_opts = scheduleds.into_iter().map(|x|Some(x)).collect::<Vec<_>>();
+				curr_scheduleds.append(&mut schedule_opts);
+			});
+		}
+	}
+
 	fn get_next_trigger(schedule: &Schedule, now_ms: u64, curr_block_number: T::BlockNumber) -> Option<(u64, T::BlockNumber)> {
 		let calendar = Calendar::create();
 		calendar.next_occurrence_ms(&calendar.from_unixtime(now_ms), schedule).map(
 			|ms_trigger| {
-				let block_number_delay = div_round_up(ms_trigger - now_ms, T::ExpectedBlockTime::get().saturated_into()).max(1);
+				let block_number_delay = div_mul_round_up(ms_trigger - now_ms, T::ExpectedBlockTime::get().saturated_into()).max(1);
 				let block_number_trigger = curr_block_number + block_number_delay.saturated_into();
 				(ms_trigger, block_number_trigger)
 			}
@@ -621,7 +690,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (_, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		Agenda::<T>::try_mutate(when, |agenda| -> DispatchResult {
 			let task = agenda.get_mut(index as usize).ok_or(Error::<T>::NotFound)?;
@@ -710,7 +779,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (_, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		Lookup::<T>::try_mutate_exists(
 			id,
@@ -808,7 +877,7 @@ impl<T: Config> schedule_datetime::Named<T::BlockNumber, <T as Config>::Call, T:
 
 // utils
 // FIXME: convert to Result, use map() instead of unwraps() to propagate calculation
-fn div_round_up(numerator: u64, denominator: u64) -> u64 {
+fn div_mul_round_up(numerator: u64, denominator: u64) -> u64 {
 	let denominator_rounded_up = if numerator % denominator == 0 {
 		denominator
 	} else {
