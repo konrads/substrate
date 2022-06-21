@@ -56,6 +56,7 @@ pub trait WeightInfo {
 	fn on_initialize_periodic(s: u32, ) -> Weight;
 	fn on_initialize_named(s: u32, ) -> Weight;
 	fn on_initialize(s: u32, ) -> Weight;
+	fn sync_scheduleds(s: u32, ) -> Weight;
 	fn schedule(s: u32, ) -> Weight;
 	fn cancel(s: u32, ) -> Weight;
 	fn schedule_named(s: u32, ) -> Weight;
@@ -175,6 +176,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add((3_455_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn sync_scheduleds(_s: u32, ) -> Weight {
+		// FIXME: temporary place holder!!!
+		14_040_000 as Weight
 	}
 	// Storage: Scheduler Agenda (r:1 w:1)
 	fn schedule(s: u32, ) -> Weight {
@@ -325,6 +330,10 @@ impl WeightInfo for () {
 			.saturating_add((3_455_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn sync_scheduleds(_s: u32, ) -> Weight {
+		// FIXME: temporary place holder!!!
+		14_040_000 as Weight
 	}
 	// Storage: Scheduler Agenda (r:1 w:1)
 	fn schedule(s: u32, ) -> Weight {

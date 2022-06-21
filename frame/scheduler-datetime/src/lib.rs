@@ -296,9 +296,10 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		/// Execute the scheduled calls
 		fn on_initialize(now: T::BlockNumber) -> Weight {
-			let should_refresh_schedules = T::ClockDriftFixFrequency::get().map(|x| now.saturated_into::<u64>() % x == 0).unwrap_or_default();
-			if should_refresh_schedules {
-				Self::refresh_scheduleds(now);
+			// FIXME: should take following into the account for weight calculations
+			let should_sync_scheduleds = T::ClockDriftFixFrequency::get().map(|x| now.saturated_into::<u64>() % x == 0).unwrap_or_default();
+			if should_sync_scheduleds {
+				Self::do_sync_scheduleds(now);
 			}
 
 			let limit = T::MaximumWeight::get();
@@ -433,6 +434,14 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		#[pallet::weight(<T as Config>::WeightInfo::sync_scheduleds(T::MaxScheduledPerBlock::get()))]
+		pub fn sync_scheduleds(origin: OriginFor<T>) -> DispatchResult {
+			T::ScheduleOrigin::ensure_origin(origin.clone())?;
+			let current_block = <frame_system::Pallet<T>>::block_number();
+			Self::do_sync_scheduleds(current_block);
+			Ok(())
+		}
+
 		/// Anonymously schedule a task.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule(T::MaxScheduledPerBlock::get()))]
 		pub fn schedule(
@@ -542,11 +551,11 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// Refreshes Scheduleds:
+	/// (Re)sync schedules:
 	/// - recalculates target `wake` BlockNumber (Agenda's key), if clock drift occurred, move it around in Agenda and Lookup storages.
 	/// - remove and None in Agenda (presuming not existing in Lookup)
 	/// Note: expensive, goes through all of Agenda storage!!!
-	fn refresh_scheduleds(now: T::BlockNumber) {
+	fn do_sync_scheduleds(now: T::BlockNumber) {
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
 		let block_duration: u64 = T::ExpectedBlockTime::get().saturated_into();
 		let mut rescheduleds = BTreeMap::<T::BlockNumber, Vec<_>>::new();
@@ -562,7 +571,7 @@ impl<T: Config> Pallet<T> {
 						let indexed_scheduleds = scheduleds.into_iter().filter_map(|x| x);
 						let new_scheduled_opts = indexed_scheduleds.filter_map(|x| {
 							// detect clock drift
-							let block_number_delay = div_mul_round_up(x.next_trigger_ms - now_ms, block_duration);
+							let block_number_delay = div_round_up(x.next_trigger_ms - now_ms, block_duration);
 							let block_number_trigger = now + block_number_delay.saturated_into();
 							if exp_block_number_trigger != block_number_trigger {
 								clock_drift_detected = true;
@@ -616,7 +625,7 @@ impl<T: Config> Pallet<T> {
 		let calendar = Calendar::create();
 		calendar.next_occurrence_ms(&calendar.from_unixtime(now_ms), schedule).map(
 			|ms_trigger| {
-				let block_number_delay = div_mul_round_up(ms_trigger - now_ms, T::ExpectedBlockTime::get().saturated_into()).max(1);
+				let block_number_delay = div_round_up(ms_trigger - now_ms, T::ExpectedBlockTime::get().saturated_into()).max(1);
 				let block_number_trigger = curr_block_number + block_number_delay.saturated_into();
 				(ms_trigger, block_number_trigger)
 			}
@@ -877,11 +886,18 @@ impl<T: Config> schedule_datetime::Named<T::BlockNumber, <T as Config>::Call, T:
 
 // utils
 // FIXME: convert to Result, use map() instead of unwraps() to propagate calculation
-fn div_mul_round_up(numerator: u64, denominator: u64) -> u64 {
-	let denominator_rounded_up = if numerator % denominator == 0 {
-		denominator
-	} else {
-		denominator.checked_add(1).unwrap()
-	};
-	numerator.checked_div(denominator).unwrap().checked_mul(denominator_rounded_up).unwrap()
+fn div_round_up(numerator: u64, denominator: u64) -> u64 {
+	numerator.checked_div(denominator).unwrap().checked_add((numerator % denominator != 0).into()).unwrap()
+}
+
+#[cfg(test)]
+mod localtests {
+    use super::*;
+
+    #[test]
+    fn test_div_mul_round_up() {
+		assert_eq!(div_round_up(111, 7), 16);
+		assert_eq!(div_round_up(112, 7), 16);
+		assert_eq!(div_round_up(113, 7), 17);
+	}
 }

@@ -8,21 +8,24 @@ A module for scheduling dispatches.
 ## Overview
 
 This module exposes capabilities for scheduling dispatches to occur at a
-specified block number or at a specified period. These scheduled dispatches
-may be named or anonymous and may be canceled.
+specified schedule based on starting UTC time, optional ending UTC time, and
+periods consisting of multiples of year/month/week/day/hour/minute/second/ms.
+These scheduled dispatches may be named or anonymous and may be canceled.
 
 **NOTE:** The scheduled calls will be dispatched with the default filter
 for the origin: namely `frame_system::Config::BaseCallFilter` for all origin
 except root which will get no filter. And not the filter contained in origin
 use to call `fn schedule`.
 
-If a call is scheduled using proxy or whatever mecanism which adds filter,
+If a call is scheduled using proxy or whatever mechanism which adds filter,
 then those filter will not be used when dispatching the schedule call.
 
 ## Interface
 
 ### Dispatchable Functions
 
+* `sync_scheduleds` - recalculate scheduled wake triggers, accounting for
+  potential clock drift.
 * `schedule` - schedule a dispatch, which may be periodic, to occur at a
   specified block and with a specified priority.
 * `cancel` - cancel a scheduled dispatch, specified by block number and
