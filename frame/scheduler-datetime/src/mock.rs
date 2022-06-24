@@ -19,7 +19,7 @@
 
 use super::*;
 
-use crate as scheduler;
+use crate as scheduler_datetime;
 use frame_support::{
 	ord_parameter_types, parameter_types,
 	traits::{
@@ -104,7 +104,8 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Logger: logger::{Pallet, Call, Event<T>},
-		Scheduler: scheduler::{Pallet, Call, Storage, Event<T>},
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+		SchedulerDatetime: scheduler_datetime::{Pallet, Call, Storage, Event<T>},
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>},
 	}
 );
@@ -153,6 +154,8 @@ impl logger::Config for Test {
 parameter_types! {
 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 	pub const NoPreimagePostponement: Option<u64> = Some(2);
+	pub const ExpectedBlockTime: u64 = 6000;
+	pub const ClockDriftFixFrequency: Option<u64> = Some(10);
 }
 ord_parameter_types! {
 	pub const One: u64 = 1;
@@ -168,6 +171,13 @@ impl pallet_preimage::Config for Test {
 	type ByteDeposit = ();
 }
 
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ConstU64<1>;
+	type WeightInfo = ();
+}
+
 impl Config for Test {
 	type Event = Event;
 	type Origin = Origin;
@@ -180,6 +190,10 @@ impl Config for Test {
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
 	type PreimageProvider = Preimage;
 	type NoPreimagePostponement = NoPreimagePostponement;
+	type Moment = u64;
+	type ExpectedBlockTime = ExpectedBlockTime;
+	type ClockDriftFixFrequency = ClockDriftFixFrequency;
+	type TimeProvider = Timestamp;
 }
 
 pub type LoggerCall = logger::Call<Test>;
@@ -191,9 +205,10 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 pub fn run_to_block(n: u64) {
 	while System::block_number() < n {
-		Scheduler::on_finalize(System::block_number());
+		SchedulerDatetime::on_finalize(System::block_number());
 		System::set_block_number(System::block_number() + 1);
-		Scheduler::on_initialize(System::block_number());
+		Timestamp::set_timestamp(System::block_number() * 6000);
+		SchedulerDatetime::on_initialize(System::block_number());
 	}
 }
 

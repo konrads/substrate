@@ -284,8 +284,6 @@ pub mod pallet {
 		FailedToSchedule,
 		/// Cannot find the scheduled call.
 		NotFound,
-		/// Given target block number is in the past.
-		TargetBlockNumberInPast,
 		/// Reschedule failed because it does not change scheduled time.
 		RescheduleNoChange,
 		/// Schedule won't trigger in the future.
@@ -571,7 +569,7 @@ impl<T: Config> Pallet<T> {
 						let indexed_scheduleds = scheduleds.into_iter().filter_map(|x| x);
 						let new_scheduled_opts = indexed_scheduleds.filter_map(|x| {
 							// detect clock drift
-							let block_number_delay = div_round_up(x.next_trigger_ms - now_ms, block_duration);
+							let block_number_delay = ceil_div(x.next_trigger_ms.saturating_sub(now_ms), block_duration);
 							let block_number_trigger = now + block_number_delay.saturated_into();
 							if exp_block_number_trigger != block_number_trigger {
 								clock_drift_detected = true;
@@ -623,10 +621,13 @@ impl<T: Config> Pallet<T> {
 
 	fn get_next_trigger(schedule: &Schedule, now_ms: u64, curr_block_number: T::BlockNumber) -> Option<(u64, T::BlockNumber)> {
 		let calendar = Calendar::create();
-		calendar.next_occurrence_ms(&calendar.from_unixtime(now_ms), schedule).map(
-			|ms_trigger| {
-				let block_number_delay = div_round_up(ms_trigger - now_ms, T::ExpectedBlockTime::get().saturated_into()).max(1);
-				let block_number_trigger = curr_block_number + block_number_delay.saturated_into();
+		let trigger_in_ms_opt = calendar.next_occurrence_ms(&calendar.from_unixtime(now_ms), schedule);
+		trigger_in_ms_opt.map(
+			|trigger_in_ms| {
+				let ms_trigger = now_ms.saturating_add(trigger_in_ms);
+				let block_in_ms = T::ExpectedBlockTime::get().saturated_into();
+				let trigger_in_blocks = ceil_div(trigger_in_ms, block_in_ms).max(1);
+				let block_number_trigger = curr_block_number.saturating_add(trigger_in_blocks.saturated_into());
 				(ms_trigger, block_number_trigger)
 			}
 		)
@@ -640,7 +641,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (next_trigger_ms, next_trigger_block) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		call.ensure_requested::<T::PreimageProvider>();
 
@@ -653,11 +654,11 @@ impl<T: Config> Pallet<T> {
 			origin,
 			_phantom: PhantomData::<T::AccountId>::default(),
 		});
-		Agenda::<T>::append(next_trigger_block_time, s);
-		let index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
-		Self::deposit_event(Event::Scheduled { when: next_trigger_block_time, index });
+		Agenda::<T>::append(next_trigger_block, s);
+		let index = Agenda::<T>::decode_len(next_trigger_block).unwrap_or(1) as u32 - 1;
+		Self::deposit_event(Event::Scheduled { when: next_trigger_block, index });
 
-		Ok((next_trigger_block_time, index))
+		Ok((next_trigger_block, index))
 	}
 
 	fn do_cancel(
@@ -699,7 +700,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (_, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (_, next_trigger_block) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		Agenda::<T>::try_mutate(when, |agenda| -> DispatchResult {
 			let task = agenda.get_mut(index as usize).ok_or(Error::<T>::NotFound)?;
@@ -708,15 +709,15 @@ impl<T: Config> Pallet<T> {
 				return Err(Error::<T>::RescheduleNoChange.into());
 			}
 			task.schedule = new_schedule;
-			Agenda::<T>::append(next_trigger_block_time, Some(task));
+			Agenda::<T>::append(next_trigger_block, Some(task));
 			Ok(())
 		})?;
 
-		let new_index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
+		let new_index = Agenda::<T>::decode_len(next_trigger_block).unwrap_or(1) as u32 - 1;
 		Self::deposit_event(Event::Canceled { when, index });
-		Self::deposit_event(Event::Scheduled { when: next_trigger_block_time, index: new_index });
+		Self::deposit_event(Event::Scheduled { when: next_trigger_block, index: new_index });
 
-		Ok((next_trigger_block_time, new_index))
+		Ok((next_trigger_block, new_index))
 	}
 
 	fn do_schedule_named(
@@ -733,7 +734,7 @@ impl<T: Config> Pallet<T> {
 
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (next_trigger_ms, next_trigger_block_time) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (next_trigger_ms, next_trigger_block) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		call.ensure_requested::<T::PreimageProvider>();
 
@@ -746,11 +747,11 @@ impl<T: Config> Pallet<T> {
 			origin,
 			_phantom: Default::default(),
 		};
-		Agenda::<T>::append(next_trigger_block_time, Some(s));
-		let index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
-		let address = (next_trigger_block_time, index);
+		Agenda::<T>::append(next_trigger_block, Some(s));
+		let index = Agenda::<T>::decode_len(next_trigger_block).unwrap_or(1) as u32 - 1;
+		let address = (next_trigger_block, index);
 		Lookup::<T>::insert(&id, &address);
-		Self::deposit_event(Event::Scheduled { when: next_trigger_block_time, index });
+		Self::deposit_event(Event::Scheduled { when: next_trigger_block, index });
 
 		Ok(address)
 	}
@@ -788,7 +789,7 @@ impl<T: Config> Pallet<T> {
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (_, next_trigger_block_time) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (_, next_trigger_block) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		Lookup::<T>::try_mutate_exists(
 			id,
@@ -802,18 +803,18 @@ impl<T: Config> Pallet<T> {
 						return Err(Error::<T>::RescheduleNoChange.into());
 					}
 					task.schedule = new_schedule;
-					Agenda::<T>::append(next_trigger_block_time, Some(task));
+					Agenda::<T>::append(next_trigger_block, Some(task));
 
 					Ok(())
 				})?;
 
-				let new_index = Agenda::<T>::decode_len(next_trigger_block_time).unwrap_or(1) as u32 - 1;
+				let new_index = Agenda::<T>::decode_len(next_trigger_block).unwrap_or(1) as u32 - 1;
 				Self::deposit_event(Event::Canceled { when, index });
-				Self::deposit_event(Event::Scheduled { when: next_trigger_block_time, index: new_index });
+				Self::deposit_event(Event::Scheduled { when: next_trigger_block, index: new_index });
 
-				*lookup = Some((next_trigger_block_time, new_index));
+				*lookup = Some((next_trigger_block, new_index));
 
-				Ok((next_trigger_block_time, new_index))
+				Ok((next_trigger_block, new_index))
 			},
 		)
 	}
@@ -885,9 +886,8 @@ impl<T: Config> schedule_datetime::Named<T::BlockNumber, <T as Config>::Call, T:
 }
 
 // utils
-// FIXME: convert to Result, use map() instead of unwraps() to propagate calculation
-fn div_round_up(numerator: u64, denominator: u64) -> u64 {
-	numerator.checked_div(denominator).unwrap().checked_add((numerator % denominator != 0).into()).unwrap()
+fn ceil_div(numerator: u64, denominator: u64) -> u64 {
+	numerator.checked_div(denominator).and_then(|x| x.checked_add((numerator % denominator != 0).into())).unwrap()
 }
 
 #[cfg(test)]
@@ -895,9 +895,9 @@ mod localtests {
     use super::*;
 
     #[test]
-    fn test_div_mul_round_up() {
-		assert_eq!(div_round_up(111, 7), 16);
-		assert_eq!(div_round_up(112, 7), 16);
-		assert_eq!(div_round_up(113, 7), 17);
+    fn test_ceil_div() {
+		assert_eq!(ceil_div(111, 7), 16);
+		assert_eq!(ceil_div(112, 7), 16);
+		assert_eq!(ceil_div(113, 7), 17);
 	}
 }

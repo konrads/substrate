@@ -24,7 +24,7 @@ pallet-timestamp = { version = "4.0.0-dev", default-features = false, path = "..
 
 # chrono-light = { path = "../../primitives/chrono-light", default-features = false, features = ["scale"] }
 # chrono-light = { version = "0.1.2", default-features = false, features = ["scale"] }
-chrono-light = { git="https://github.com/konrads/chrono-light.git", rev="503cc82b8698b7827cb09686b0ee203443d17347", default-features = false, features = ["scale"] }
+chrono-light = { git="https://github.com/konrads/chrono-light.git", rev="bde392b8926568d6589aa7aa812a2ccec03d517b", default-features = false, features = ["scale"] }
 
 [dev-dependencies]
 sp-core = { version = "6.0.0", path = "../../primitives/core", default-features = false }

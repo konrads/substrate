@@ -913,7 +913,7 @@ dependencies = [
 [[package]]
 name = "chrono-light"
 version = "0.1.3"
-source = "git+https://github.com/konrads/chrono-light.git?rev=503cc82b8698b7827cb09686b0ee203443d17347#503cc82b8698b7827cb09686b0ee203443d17347"
+source = "git+https://github.com/konrads/chrono-light.git?rev=bde392b8926568d6589aa7aa812a2ccec03d517b#bde392b8926568d6589aa7aa812a2ccec03d517b"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
