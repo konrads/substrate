@@ -207,7 +207,7 @@ pub fn run_to_block(n: u64) {
 	while System::block_number() < n {
 		SchedulerDatetime::on_finalize(System::block_number());
 		System::set_block_number(System::block_number() + 1);
-		Timestamp::set_timestamp(System::block_number() * 6000);
+		Timestamp::set_timestamp(Timestamp::get() + 6000);
 		SchedulerDatetime::on_initialize(System::block_number());
 	}
 }

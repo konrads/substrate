@@ -678,3 +678,43 @@ fn should_check_orign_for_cancel() {
 		);
 	});
 }
+
+#[test]
+fn should_fix_clock_drift() {
+	// run late @ 10th block
+	new_test_ext().execute_with(|| {
+		let call = Call::Logger(LoggerCall::log { i: 42, weight: 1000 });
+		assert!(!<Test as frame_system::Config>::BaseCallFilter::contains(&call));
+		// start at block 5, repeat every 10 blocks
+		assert_ok!(SchedulerDatetime::do_schedule(schedule_secs(30, vec![60], None), 127, root(), call.into()));
+		run_to_block(4);
+		assert!(logger::log().is_empty());
+		run_to_block(5);
+		assert_eq!(logger::log().len(), 1);
+
+		// inject 12 sec delay, ie. moving schedules 2 blocks forth
+		Timestamp::set_timestamp(Timestamp::get() + 12000);
+		run_to_block(12);
+		assert_eq!(logger::log().len(), 1);
+		run_to_block(13);  // instead of 15!
+		assert_eq!(logger::log().len(), 2);
+		run_to_block(22);
+		assert_eq!(logger::log().len(), 2);
+		run_to_block(23);
+		assert_eq!(logger::log().len(), 3);
+
+		// inject 18 sec speed up, ie. moving schedules 3 blocks back
+		Timestamp::set_timestamp(Timestamp::get() - 18000);
+		run_to_block(35);
+		assert_eq!(logger::log().len(), 3);
+		run_to_block(36);  // instead of 33!
+		assert_eq!(logger::log().len(), 4);
+
+		// ensure no schedules are lost on delay move back of 60s, 10 blocks
+		Timestamp::set_timestamp(Timestamp::get() + 60000);
+		run_to_block(39);
+		assert_eq!(logger::log().len(), 4);
+		run_to_block(40);  // instead of 33!
+		assert_eq!(logger::log().len(), 5);
+	});
+}

@@ -560,8 +560,8 @@ impl<T: Config> Pallet<T> {
 
 		// iterate through all the keys, removing when clock drift detected, keeping track in `rescheduleds` for subsequent re-introduction
 		let ignore_error = ();
-		for exp_block_number_trigger in Agenda::<T>::iter_keys() {
-			Agenda::<T>::try_mutate_exists(exp_block_number_trigger, |scheduled_opts| {
+		for exp_block_trigger in Agenda::<T>::iter_keys() {
+			Agenda::<T>::try_mutate_exists(exp_block_trigger, |scheduled_opts| {
 				match scheduled_opts.take() {
 					None => Result::Err(ignore_error),  // won't happen, we picked existing key
 					Some(scheduleds) => {
@@ -569,9 +569,9 @@ impl<T: Config> Pallet<T> {
 						let indexed_scheduleds = scheduleds.into_iter().filter_map(|x| x);
 						let new_scheduled_opts = indexed_scheduleds.filter_map(|x| {
 							// detect clock drift
-							let block_number_delay = ceil_div(x.next_trigger_ms.saturating_sub(now_ms), block_duration);
-							let block_number_trigger = now + block_number_delay.saturated_into();
-							if exp_block_number_trigger != block_number_trigger {
+							let block_delay = ceil_div(x.next_trigger_ms.saturating_sub(now_ms), block_duration);
+							let block_trigger = now + block_delay.saturated_into();
+							if exp_block_trigger != block_trigger {
 								clock_drift_detected = true;
 								// remove from Lookup
 								if let Some(id) = &x.maybe_id {
@@ -579,10 +579,10 @@ impl<T: Config> Pallet<T> {
 								}
 
 								// store for subsequent insertion
-								if let Some(scheduleds) = rescheduleds.get_mut(&block_number_trigger) {
+								if let Some(scheduleds) = rescheduleds.get_mut(&block_trigger) {
 									scheduleds.push(x);
 								} else {
-									rescheduleds.insert(block_number_trigger, vec![x]);
+									rescheduleds.insert(block_trigger, vec![x]);
 								}
 
 								None
