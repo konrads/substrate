@@ -913,7 +913,7 @@ dependencies = [
 [[package]]
 name = "chrono-light"
 version = "0.1.3"
-source = "git+https://github.com/konrads/chrono-light.git?rev=bde392b8926568d6589aa7aa812a2ccec03d517b#bde392b8926568d6589aa7aa812a2ccec03d517b"
+source = "git+https://github.com/konrads/chrono-light.git?rev=1f5d85bcbd8fefcc59a549d466d88d6dd2daa920#1f5d85bcbd8fefcc59a549d466d88d6dd2daa920"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -4681,6 +4681,7 @@ dependencies = [
  "pallet-nomination-pools-benchmarking",
  "pallet-offences",
  "pallet-offences-benchmarking",
+ "pallet-playground",
  "pallet-preimage",
  "pallet-proxy",
  "pallet-randomness-collective-flip",
@@ -5850,6 +5851,18 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-playground"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
 ]
 
 [[package]]

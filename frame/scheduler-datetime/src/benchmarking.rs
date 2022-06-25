@@ -1,4 +1,5 @@
-// This file is part of Substrate.
+// This file influenced by code in Substrate's schedule pallet.
+// Following is the Apache-2.0 license obligation.
 
 // Copyright (C) 2020-2022 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
@@ -15,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Scheduler pallet benchmarking.
+//! SchedulerDatetime pallet benchmarking.
 
 use super::*;
 use frame_benchmarking::benchmarks;

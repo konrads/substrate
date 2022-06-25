@@ -21,10 +21,8 @@ frame-system = { version = "4.0.0-dev", default-features = false, path = "../sys
 frame-support = { version = "4.0.0-dev", default-features = false, path = "../support" }
 frame-benchmarking = { version = "4.0.0-dev", default-features = false, path = "../benchmarking", optional = true }
 pallet-timestamp = { version = "4.0.0-dev", default-features = false, path = "../timestamp" }
-
-# chrono-light = { path = "../../primitives/chrono-light", default-features = false, features = ["scale"] }
-# chrono-light = { version = "0.1.2", default-features = false, features = ["scale"] }
-chrono-light = { git="https://github.com/konrads/chrono-light.git", rev="bde392b8926568d6589aa7aa812a2ccec03d517b", default-features = false, features = ["scale"] }
+chrono-light = { git="https://github.com/konrads/chrono-light.git", rev="1f5d85bcbd8fefcc59a549d466d88d6dd2daa920", default-features = false, features = ["scale"] }
+# chrono-light = { version = "0.1.4", default-features = false, features = ["scale"] }
 
 [dev-dependencies]
 sp-core = { version = "6.0.0", path = "../../primitives/core", default-features = false }

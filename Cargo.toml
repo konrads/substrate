@@ -110,6 +110,7 @@ members = [
 	"frame/nicks",
 	"frame/node-authorization",
 	"frame/offences",
+	"frame/playground",
 	"frame/preimage",
 	"frame/proxy",
 	"frame/nomination-pools",

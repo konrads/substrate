@@ -379,6 +379,10 @@ impl pallet_scheduler_datetime::Config for Runtime {
 	type ClockDriftFixFrequency = ClockDriftFixFrequency;
 }
 
+impl pallet_playground::Config for Runtime {
+	type Event = Event;
+}
+
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub const PreimageBaseDeposit: Balance = 1 * DOLLARS;
@@ -1539,6 +1543,7 @@ construct_runtime!(
 		Vesting: pallet_vesting,
 		Scheduler: pallet_scheduler,
 		SchedulerDatetime: pallet_scheduler_datetime,
+		Playground: pallet_playground,
 		Preimage: pallet_preimage,
 		Proxy: pallet_proxy,
 		Multisig: pallet_multisig,

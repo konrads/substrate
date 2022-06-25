@@ -1,4 +1,5 @@
-// This file is part of Substrate.
+// This file influenced by code in Substrate's schedule pallet.
+// Following is the Apache-2.0 license obligation.
 
 // Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
@@ -15,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Scheduler tests.
+//! # SchedulerDatetime tests.
 
 use super::*;
 use crate::mock::{logger, new_test_ext, root, run_to_block, Call, LoggerCall, SchedulerDatetime, Test, *};
@@ -714,7 +715,7 @@ fn should_fix_clock_drift() {
 		Timestamp::set_timestamp(Timestamp::get() + 60000);
 		run_to_block(39);
 		assert_eq!(logger::log().len(), 4);
-		run_to_block(40);  // instead of 33!
+		run_to_block(40);  // instead of 46!
 		assert_eq!(logger::log().len(), 5);
 	});
 }

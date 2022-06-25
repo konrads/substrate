@@ -93,6 +93,7 @@ pallet-staking-reward-curve = { version = "4.0.0-dev", default-features = false,
 pallet-state-trie-migration = { version = "4.0.0-dev", default-features = false, path = "../../../frame/state-trie-migration" }
 pallet-scheduler = { version = "4.0.0-dev", default-features = false, path = "../../../frame/scheduler" }
 pallet-scheduler-datetime = { default-features = false, path = "../../../frame/scheduler-datetime" }
+pallet-playground = { default-features = false, path = "../../../frame/playground" }
 pallet-society = { version = "4.0.0-dev", default-features = false, path = "../../../frame/society" }
 pallet-sudo = { version = "4.0.0-dev", default-features = false, path = "../../../frame/sudo" }
 pallet-timestamp = { version = "4.0.0-dev", default-features = false, path = "../../../frame/timestamp" }

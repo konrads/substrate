@@ -1,0 +1,25 @@
+[package]
+name = "pallet-playground"
+version = "4.0.0-dev"
+edition = "2021"
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+log = { version = "0.4.17", default-features = false }
+frame-system = { version = "4.0.0-dev", default-features = false, path = "../system" }
+frame-support = { version = "4.0.0-dev", default-features = false, path = "../support" }
+
+[dev-dependencies]
+sp-core = { version = "6.0.0", path = "../../primitives/core", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"scale-info/std",
+	"log/std",
+	"frame-system/std",
+	"frame-support/std"
+]
+try-runtime = ["frame-support/try-runtime"]

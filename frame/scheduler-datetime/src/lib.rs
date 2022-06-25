@@ -1,4 +1,5 @@
-// This file is part of Substrate.
+// This file influenced by code in Substrate's schedule pallet.
+// Following is the Apache-2.0 license obligation.
 
 // Copyright (C) 2017-2022 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
@@ -25,15 +26,17 @@
 //! ## Overview
 //!
 //! This Pallet exposes capabilities for scheduling dispatches to occur at a
-//! specified block number or at a specified period. These scheduled dispatches
-//! may be named or anonymous and may be canceled.
+//! specified schedules, which are based on unixtime and converted to block numbers.
+//! These scheduled dispatches may be named or anonymous and may be canceled.
+//! The pallet is based on Substrate scheduler pallet, but utilizes
+//! `chrono-light` library for actual scheduling (https://crates.io/crates/chrono-light).
 //!
 //! **NOTE:** The scheduled calls will be dispatched with the default filter
 //! for the origin: namely `frame_system::Config::BaseCallFilter` for all origin
 //! except root which will get no filter. And not the filter contained in origin
 //! use to call `fn schedule`.
 //!
-//! If a call is scheduled using proxy or whatever mecanism which adds filter,
+//! If a call is scheduled using proxy or whatever mechanism which adds filter,
 //! then those filter will not be used when dispatching the schedule call.
 //!
 //! ## Interface
@@ -288,6 +291,8 @@ pub mod pallet {
 		RescheduleNoChange,
 		/// Schedule won't trigger in the future.
 		NoFutureScheduleTriggers,
+		/// Schedule won't trigger in the future.
+		InvalidSchedule,
 	}
 
 	#[pallet::hooks]
@@ -324,6 +329,7 @@ pub mod pallet {
 
 			if ! queued.is_empty() {
 				let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
+				let calendar = Calendar::create();
 
 				for (order, (index, mut s)) in queued.into_iter().enumerate() {
 					let named = if let Some(ref id) = s.maybe_id {
@@ -414,7 +420,7 @@ pub mod pallet {
 					});
 
 					// Inject next schedule based on current block number
-					if let Some((ms_trigger, block_number_trigger)) = Self::get_next_trigger(&s.schedule, now_ms, now) {
+					if let Some((ms_trigger, block_number_trigger)) = Self::get_next_trigger(&calendar, &s.schedule, now_ms, now) {
 						// If scheduled is named, place its information in `Lookup`
 						if let Some(ref id) = s.maybe_id {
 							let wake_index = Agenda::<T>::decode_len(block_number_trigger).unwrap_or(0);
@@ -619,8 +625,7 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	fn get_next_trigger(schedule: &Schedule, now_ms: u64, curr_block_number: T::BlockNumber) -> Option<(u64, T::BlockNumber)> {
-		let calendar = Calendar::create();
+	fn get_next_trigger(calendar: &Calendar, schedule: &Schedule, now_ms: u64, curr_block_number: T::BlockNumber) -> Option<(u64, T::BlockNumber)> {
 		let trigger_in_ms_opt = calendar.next_occurrence_ms(&calendar.from_unixtime(now_ms), schedule);
 		trigger_in_ms_opt.map(
 			|trigger_in_ms| {
@@ -639,9 +644,11 @@ impl<T: Config> Pallet<T> {
 		origin: T::PalletsOrigin,
 		call: CallOrHashOf<T>,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
+		let calendar = Calendar::create();
+		calendar.validate_schedule(&schedule).map_err(|_| Error::<T>::InvalidSchedule)?;
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (next_trigger_ms, next_trigger_block) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (next_trigger_ms, next_trigger_block) = Self::get_next_trigger(&calendar, &schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		call.ensure_requested::<T::PreimageProvider>();
 
@@ -698,9 +705,11 @@ impl<T: Config> Pallet<T> {
 		(when, index): TaskAddress<T::BlockNumber>,
 		new_schedule: Schedule,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
+		let calendar = Calendar::create();
+		calendar.validate_schedule(&new_schedule).map_err(|_| Error::<T>::InvalidSchedule)?;
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (_, next_trigger_block) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (_, next_trigger_block) = Self::get_next_trigger(&calendar, &new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		Agenda::<T>::try_mutate(when, |agenda| -> DispatchResult {
 			let task = agenda.get_mut(index as usize).ok_or(Error::<T>::NotFound)?;
@@ -727,6 +736,8 @@ impl<T: Config> Pallet<T> {
 		origin: T::PalletsOrigin,
 		call: CallOrHashOf<T>,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
+		let calendar = Calendar::create();
+		calendar.validate_schedule(&schedule).map_err(|_| Error::<T>::InvalidSchedule)?;
 		// ensure id it is unique
 		if Lookup::<T>::contains_key(&id) {
 			return Err(Error::<T>::FailedToSchedule)?;
@@ -734,7 +745,7 @@ impl<T: Config> Pallet<T> {
 
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (next_trigger_ms, next_trigger_block) = Self::get_next_trigger(&schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (next_trigger_ms, next_trigger_block) = Self::get_next_trigger(&calendar, &schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		call.ensure_requested::<T::PreimageProvider>();
 
@@ -787,9 +798,12 @@ impl<T: Config> Pallet<T> {
 		id: Vec<u8>,
 		new_schedule: Schedule,
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
+		let calendar = Calendar::create();
+		Calendar::create().validate_schedule(&new_schedule).map_err(|_| Error::<T>::InvalidSchedule)?;
+
 		let curr_block_number = <frame_system::Pallet<T>>::block_number();
 		let now_ms: u64 = T::TimeProvider::now().saturated_into::<u64>();
-		let (_, next_trigger_block) = Self::get_next_trigger(&new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
+		let (_, next_trigger_block) = Self::get_next_trigger(&calendar, &new_schedule, now_ms, curr_block_number).ok_or(Error::<T>::NoFutureScheduleTriggers)?;
 
 		Lookup::<T>::try_mutate_exists(
 			id,
